@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#111111">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Snake">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="style.css?v=28">
+    <title>Snake</title>
+</head>
+<body>
+    <div id="game-area">
+        <button id="btn-opts" class="opts-trigger" title="Settings">⚙</button>
+        <div id="adv-hud"><span id="coin-display">⚡ 0</span><span id="mode-badge">ADV</span></div>
+        <div id="scoreboard">
+            <span>SCORE: <span id="score-val">0</span></span>
+            <span id="player-name-disp"></span>
+            <span>BEST: <span id="highscore-val">0</span></span>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <div id="ability-bar">
+            <button class="abl-btn level0" id="abl-tongue">
+                <span class="abl-name">TONGUE</span>
+                <span class="abl-level" id="abl-tongue-level">–</span>
+                <span class="abl-cd" id="abl-tongue-cd">LOCKED</span>
+            </button>
+            <button class="abl-btn level0" id="abl-slowtime">
+                <span class="abl-name">SLOW TIME</span>
+                <span class="abl-level" id="abl-slowtime-level">–</span>
+                <span class="abl-cd" id="abl-slowtime-cd">LOCKED</span>
+            </button>
+            <button class="abl-btn level0" id="abl-babysnake">
+                <span class="abl-name">SIDEKICK</span>
+                <span class="abl-level" id="abl-babysnake-level">–</span>
+                <span class="abl-cd" id="abl-babysnake-cd">LOCKED</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Options panel: fixed, slides down from top -->
+    <div id="options-panel">
+        <div class="opt-row">
+            <span class="opt-label">MASTER</span>
+            <input type="range" id="sl-master" min="0" max="100">
+            <span class="opt-val" id="vl-master">80</span>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">MUSIC</span>
+            <input type="range" id="sl-music" min="0" max="100">
+            <span class="opt-val" id="vl-music">70</span>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">SFX</span>
+            <input type="range" id="sl-sfx" min="0" max="100">
+            <span class="opt-val" id="vl-sfx">80</span>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">HAPTICS</span>
+            <button id="btn-haptics" class="toggle-btn">ON</button>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">DIFF</span>
+            <button id="btn-easy"   class="toggle-btn off" style="padding:5px 12px">EASY</button>
+            <button id="btn-normal" class="toggle-btn"     style="padding:5px 12px">NORM</button>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">MODE</span>
+            <button id="btn-classic"  class="toggle-btn"     style="padding:5px 10px">CLASS</button>
+            <button id="btn-advanced" class="toggle-btn off" style="padding:5px 10px">ADV</button>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">HAND</span>
+            <button id="btn-hand-r" class="toggle-btn"     style="padding:5px 10px">RIGHT</button>
+            <button id="btn-hand-l" class="toggle-btn off" style="padding:5px 10px">LEFT</button>
+        </div>
+        <div class="opt-row" style="gap:8px">
+            <button id="btn-lb" class="toggle-btn off" style="flex:1;padding:5px 8px">🏆 SCORES</button>
+            <button id="btn-fs" class="toggle-btn off" style="flex:1;padding:5px 8px">⛶ FULL</button>
+        </div>
+        <div id="opts-close-bar">▼ close</div>
+    </div>
+
+    <!-- Swipe zone: dedicated swipe area + small pause button -->
+    <div id="swipe-zone">
+        <button id="btn-pause" class="pause-btn" title="Pause">⏸</button>
+    </div>
+
+    <!-- Shop overlay -->
+    <div id="shop-overlay" class="game-overlay hidden">
+        <div class="overlay-box">
+            <div class="overlay-title">SHOP</div>
+            <div class="shop-coins">⚡ <span id="shop-coin-val">0</span> coins</div>
+            <div id="shop-items"></div>
+            <button id="btn-shop-close" class="overlay-btn secondary">Resume Game</button>
+        </div>
+    </div>
+
+    <!-- Profile creation overlay -->
+    <div id="profile-overlay" class="game-overlay hidden">
+        <div class="overlay-box">
+            <div class="overlay-title">CREATE PROFILE</div>
+            <div id="avatar-preview">🐍</div>
+            <div class="avatar-opts">
+                <button class="overlay-btn secondary" id="btn-take-photo">📷 Camera</button>
+                <button class="overlay-btn secondary" id="btn-pick-photo">🖼 Gallery</button>
+            </div>
+            <input id="input-camera"  type="file" accept="image/*" capture="user" style="display:none">
+            <input id="input-gallery" type="file" accept="image/*" style="display:none">
+            <input id="input-name" class="overlay-inp" type="text" maxlength="16" placeholder="Your name" autocomplete="off">
+            <button id="btn-save-profile" class="overlay-btn">LET'S GO ▶</button>
+            <button id="btn-skip-profile" class="overlay-btn secondary">Skip</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard overlay -->
+    <div id="leaderboard-overlay" class="game-overlay hidden">
+        <div class="overlay-box">
+            <div class="overlay-title">HIGH SCORES</div>
+            <div id="lb-list"></div>
+            <div class="lb-row">
+                <button id="btn-new-profile" class="overlay-btn secondary">+ New Profile</button>
+                <button id="btn-lb-close"    class="overlay-btn secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="client.js?v=28"></script>
+    <script>
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+    </script>
+</body>
+</html>
