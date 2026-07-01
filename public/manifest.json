@@ -1,7 +1,7 @@
 {
-  "name": "Snake",
-  "short_name": "Snake",
-  "description": "Classic Snake game",
+  "name": "Snakes",
+  "short_name": "Snakes",
+  "description": "Snake game with multiple playable characters",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

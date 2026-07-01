@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.28';
+const VERSION = 'v1.29';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -258,8 +258,13 @@ function saveProfileHighScore() {
 function loadProfileHighScore() {
     const p = getCurrentProfile();
     highScore = p ? (p.scores[getScoreKey()] || 0) : 0;
-    const el = document.getElementById('player-name-disp');
-    if (el) el.textContent = p ? p.name : '';
+    const av = document.getElementById('sb-av');
+    const nm = document.getElementById('sb-name-text');
+    if (av) {
+        if (p && p.avatar) { av.innerHTML = `<img src="${p.avatar}">`; }
+        else { av.innerHTML = '🐍'; }
+    }
+    if (nm) nm.textContent = p ? p.name : '';
     updateScoreDisplay();
 }
 
@@ -331,6 +336,28 @@ function showLeaderboard() {
         row.append(rank, av, info, btn);
         list.appendChild(row);
     });
+    // Reset scores button with math confirmation
+    const lb = document.getElementById('lb-bottom');
+    if (lb) {
+        lb.innerHTML = '';
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'overlay-btn secondary';
+        resetBtn.style.cssText = 'margin-top:8px;font-size:10px;color:#333;border-color:#222';
+        resetBtn.textContent = 'Reset All Scores';
+        resetBtn.onclick = () => {
+            const a = Math.floor(Math.random() * 9) + 2;
+            const b = Math.floor(Math.random() * 9) + 2;
+            const ans = prompt(`Confirm reset — what is ${a} × ${b}?`);
+            if (ans !== null && parseInt(ans, 10) === a * b) {
+                const ps = _profiles();
+                ps.forEach(p => { p.scores = {}; });
+                _saveProfiles(ps);
+                loadProfileHighScore();
+                showLeaderboard();
+            }
+        };
+        lb.appendChild(resetBtn);
+    }
     document.getElementById('leaderboard-overlay').classList.remove('hidden');
 }
 
@@ -1109,12 +1136,12 @@ function sfxSwipe() {
     if (!audioCtx) return;
     const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
     osc.connect(g); g.connect(sfxGain);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(380, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.045);
-    g.gain.setValueAtTime(0.055, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(180, audioCtx.currentTime + 0.07);
+    g.gain.setValueAtTime(0.22, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
 }
 
 function sfxLunge() {

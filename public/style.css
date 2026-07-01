@@ -75,7 +75,10 @@ body {
 
 /* ── Swipe zone: pure swipe area + small pause button ── */
 #swipe-zone {
-    flex: 1;
+    flex: 0 0 auto;
+    height: 14dvh;
+    min-height: 80px;
+    max-height: 130px;
     position: relative;
     background: #161616;
     border-top: 1px solid #2a2a2a;
@@ -270,11 +273,32 @@ input[type="range"] {
 .lb-play-btn.me { border-color: #44ff44; color: #44ff44; }
 .lb-play-btn:active { opacity: 0.7; }
 
-/* Scoreboard profile name */
+/* Scoreboard profile display */
 #player-name-disp {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100px;
+    overflow: hidden;
+}
+.sb-av {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+.sb-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#sb-name-text {
     font-size: 11px; color: #555; font-family: monospace;
     letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; max-width: 90px; text-align: center;
+    white-space: nowrap;
 }
 
 /* ── Advanced mode HUD ── */
