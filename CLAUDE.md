@@ -1,7 +1,7 @@
 # Snakes — Project Notes for Claude
 
 **Last updated:** 2026-07-01
-**Status:** Active development. v1.29 deployed. Classic mode fully working. Advanced mode (multiple snake characters with abilities) is the next major feature.
+**Status:** Active development. v1.30 deployed. Classic mode fully working. Advanced mode (multiple snake characters with abilities) is the next major feature.
 
 ---
 
@@ -9,8 +9,9 @@
 
 Browser-based Snakes game. Portrait mode. Bottom portion of the phone screen is a swipe zone. Multiple playable snake characters each with different passive and active abilities. Anyone can play via a link — no install required. PWA-capable.
 
-**GitHub:** https://github.com/VirtualSteveShow/Snakes
-**Hosting:** Render.com (auto-deploys on `git push master`) — set up when ready to go live
+**GitHub:** https://github.com/VirtualSteveShow/Snakes (public — required for GitHub Pages)
+**Hosting:** GitHub Pages, auto-deploys on `git push master` via `.github/workflows/pages.yml` — live at https://virtualsteveshow.github.io/Snakes/
+**Alt hosting:** Render.com free tier — not set up, was the original plan before switching to GitHub Pages
 
 ---
 
@@ -68,10 +69,12 @@ After every completed feature: `git add . && git commit -m "..." && git push`
 
 | What | Where | Current value |
 |------|-------|---------------|
-| `const VERSION` | `public/client.js` line 3 | `'v1.29'` |
-| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v29` |
-| script tag | `public/index.html` `<script src="client.js?v=N">` | `v29` |
-| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v30'` |
+| `const VERSION` | `public/client.js` line 3 | `'v1.30'` |
+| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v30` |
+| script tag | `public/index.html` `<script src="client.js?v=N">` | `v30` |
+| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v31'` |
+
+**Note:** all asset paths in `index.html`, `manifest.json`, `sw.js`, and `client.js` must stay **relative** (no leading `/`) — GitHub Pages serves this repo from `/Snakes/`, not domain root.
 
 ---
 
@@ -79,12 +82,13 @@ After every completed feature: `git add . && git commit -m "..." && git push`
 
 ```
 Snakes/
-├── server.py          — aiohttp static file server, port 8083
+├── server.py          — aiohttp static file server, port 8083 (local dev only)
 ├── requirements.txt   — aiohttp>=3.9.0
 ├── CLAUDE.md
 ├── TODO.md
 ├── Start_Server.bat
 ├── Restart_Server.bat
+├── .github/workflows/pages.yml   — deploys public/ to GitHub Pages on push to master
 └── public/
     ├── index.html     — game, all UI
     ├── style.css
@@ -115,4 +119,4 @@ git commit -m "description"
 git push
 ```
 
-Render auto-deploys in ~1–2 min. Always bump all four version markers before committing any frontend change.
+GitHub Pages auto-deploys in ~1–2 min via Actions. Always bump all four version markers before committing any frontend change.

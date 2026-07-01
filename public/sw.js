@@ -1,6 +1,6 @@
-const CACHE = 'snakes-v30';
+const CACHE = 'snakes-v31';
 // HTML is not pre-cached — always fetched fresh from network
-const ASSETS = ['/style.css', '/client.js', '/manifest.json', '/gameover.wav', '/music.wav', '/images/snake_scale.png', '/images/bg_grass.png'];
+const ASSETS = ['style.css', 'client.js', 'manifest.json', 'gameover.wav', 'music.wav', 'images/snake_scale.png', 'images/bg_grass.png'];
 
 self.addEventListener('install', e => {
     e.waitUntil(

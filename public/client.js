@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.29';
+const VERSION = 'v1.30';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -93,8 +93,8 @@ let gameOverFadeGain = null;
 let _goAB  = null;
 let _musAB = null;
 
-fetch('/gameover.wav').then(r => r.arrayBuffer()).then(ab => { _goAB  = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
-fetch('/music.wav'   ).then(r => r.arrayBuffer()).then(ab => { _musAB = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
+fetch('gameover.wav').then(r => r.arrayBuffer()).then(ab => { _goAB  = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
+fetch('music.wav'   ).then(r => r.arrayBuffer()).then(ab => { _musAB = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
 
 function _normalizeBuffer(buf) {
     let peak = 0;
@@ -149,7 +149,7 @@ let optionsOpen = false;
 
 // ── Visual juice state ────────────────────────────────────────
 const bgImg = new Image();
-bgImg.src = '/images/bg_grass.png';
+bgImg.src = 'images/bg_grass.png';
 let particles = [], scorePops = [], shakeMag = 0;
 let handedness      = localStorage.getItem('snake_hand') || 'right';
 let lungePauseUntil = 0;
