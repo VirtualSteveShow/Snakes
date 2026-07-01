@@ -57,6 +57,9 @@ body {
 /* handedness positioning — right is default */
 #game-area.hand-left  #btn-opts { left: 8px; }
 #game-area.hand-right #btn-opts { right: 8px; }
+/* leave room so BEST/coin-display/avatar never sit under the gear */
+#game-area.hand-left  #scoreboard, #game-area.hand-left  #adv-hud, #game-area.hand-left  #profile-header  { padding-left: 38px; }
+#game-area.hand-right #scoreboard, #game-area.hand-right #adv-hud, #game-area.hand-right #profile-header  { padding-right: 38px; }
 
 #scoreboard {
     display: flex;
@@ -273,17 +276,31 @@ input[type="range"] {
 .lb-play-btn.me { border-color: #44ff44; color: #44ff44; }
 .lb-play-btn:active { opacity: 0.7; }
 
-/* Scoreboard profile display */
+/* Profile header: larger avatar + name, top of screen, tap to change photo */
+#profile-header {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 500px;
+    flex-shrink: 0;
+}
 #player-name-disp {
     display: flex;
     align-items: center;
-    gap: 5px;
-    max-width: 100px;
+    gap: 8px;
+    max-width: 220px;
     overflow: hidden;
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
+#player-name-disp:active { opacity: 0.7; }
 .sb-av {
-    width: 22px;
-    height: 22px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: #1a1a1a;
     border: 1px solid #333;
@@ -292,11 +309,11 @@ input[type="range"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 22px;
 }
 .sb-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #sb-name-text {
-    font-size: 11px; color: #555; font-family: monospace;
+    font-size: 13px; color: #999; font-family: monospace;
     letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap;
 }

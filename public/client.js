@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.30';
+const VERSION = 'v1.31';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -216,7 +216,8 @@ const ABILITY_CFG = {
 };
 
 // ── Profile system ────────────────────────────────────────────
-let _pendingAvatar = null; // base64 data URL from image picker
+let _pendingAvatar = null;    // base64 data URL from image picker
+let _editingProfileId = null; // set when profile-overlay is editing an existing profile
 
 function _profiles() {
     try {
@@ -244,6 +245,15 @@ function createProfile(name, avatar) {
     _saveProfiles(ps);
     localStorage.setItem('snake_current_profile', p.id);
     return p;
+}
+
+function updateProfile(id, name, avatar) {
+    const ps = _profiles();
+    const p = ps.find(p => p.id === id);
+    if (!p) return;
+    p.name = (name || 'Anonymous').trim().slice(0, 16);
+    p.avatar = avatar || null;
+    _saveProfiles(ps);
 }
 
 function saveProfileHighScore() {
@@ -296,11 +306,30 @@ function processAvatarFile(file) {
 
 // ── Profile / Leaderboard UI ──────────────────────────────────
 function showProfileCreation() {
+    _editingProfileId = null;
     _pendingAvatar = null;
     const prev = document.getElementById('avatar-preview');
     if (prev) prev.innerHTML = '🐍';
     const inp = document.getElementById('input-name');
     if (inp) inp.value = '';
+    document.getElementById('profile-overlay-title').textContent = 'CREATE PROFILE';
+    document.getElementById('btn-save-profile').textContent = "LET'S GO ▶";
+    document.getElementById('btn-skip-profile').textContent = 'Skip';
+    document.getElementById('profile-overlay').classList.remove('hidden');
+}
+
+function showProfileEdit() {
+    const p = getCurrentProfile();
+    if (!p) { showProfileCreation(); return; }
+    _editingProfileId = p.id;
+    _pendingAvatar = p.avatar || null;
+    const prev = document.getElementById('avatar-preview');
+    if (prev) prev.innerHTML = p.avatar ? `<img src="${p.avatar}">` : '🐍';
+    const inp = document.getElementById('input-name');
+    if (inp) inp.value = p.name;
+    document.getElementById('profile-overlay-title').textContent = 'EDIT PROFILE';
+    document.getElementById('btn-save-profile').textContent = 'SAVE ▶';
+    document.getElementById('btn-skip-profile').textContent = 'Cancel';
     document.getElementById('profile-overlay').classList.remove('hidden');
 }
 
@@ -372,12 +401,14 @@ function initProfileUI() {
     document.getElementById('btn-save-profile').addEventListener('click', () => {
         const name = (document.getElementById('input-name').value || '').trim();
         if (!name) { document.getElementById('input-name').focus(); return; }
-        createProfile(name, _pendingAvatar);
+        if (_editingProfileId) updateProfile(_editingProfileId, name, _pendingAvatar);
+        else createProfile(name, _pendingAvatar);
         hideProfileOverlay();
         loadProfileHighScore();
     });
 
     document.getElementById('btn-skip-profile').addEventListener('click', () => {
+        if (_editingProfileId) { hideProfileOverlay(); return; }
         if (!getCurrentProfile()) createProfile('Anonymous', null);
         hideProfileOverlay();
         loadProfileHighScore();
@@ -390,6 +421,7 @@ function initProfileUI() {
     });
 
     document.getElementById('btn-lb').addEventListener('click', e => { e.stopPropagation(); showLeaderboard(); });
+    document.getElementById('player-name-disp').addEventListener('click', e => { e.stopPropagation(); showProfileEdit(); });
 
     // If no profile exists, show creation screen immediately
     if (!getCurrentProfile()) showProfileCreation();
