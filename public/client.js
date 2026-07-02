@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.45';
+const VERSION = 'v1.46';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -171,14 +171,99 @@ function updateRenderSnake(now) {
 
 
 // ── Visual juice state ────────────────────────────────────────
-const bgImg = new Image();
-bgImg.src = 'images/bg_grass.png';
 let particles = [], scorePops = [], shakeMag = 0;
 
+// ── Procedural background (grasslands: mottled grass, dirt patches, stones) ────
+// Rendered once per game to an offscreen canvas at a fixed design resolution, then
+// stretched to fit — regenerating it from scratch each game is what makes it different
+// every time, and drawing it once instead of per-frame keeps it cheap.
+const BG_UNIT = 40; // px per grid cell in the offscreen canvas
+let bgCanvas = null;
+
+function blobPath(bctx, cx, cy, R, n, jitter) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const rr = R * (1 - jitter / 2 + Math.random() * jitter);
+        pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
+    }
+    bctx.beginPath();
+    bctx.moveTo((pts[0].x + pts[n - 1].x) / 2, (pts[0].y + pts[n - 1].y) / 2);
+    for (let i = 0; i < n; i++) {
+        const next = pts[(i + 1) % n];
+        const midx = (pts[i].x + next.x) / 2, midy = (pts[i].y + next.y) / 2;
+        bctx.quadraticCurveTo(pts[i].x, pts[i].y, midx, midy);
+    }
+    bctx.closePath();
+}
+
+function drawDirtPatch(bctx, cx, cy, R) {
+    blobPath(bctx, cx, cy, R, 11 + Math.floor(Math.random() * 4), 0.5);
+    bctx.fillStyle = 'rgba(150,112,58,0.55)';
+    bctx.fill();
+    blobPath(bctx, cx, cy, R * 0.62, 9 + Math.floor(Math.random() * 3), 0.5);
+    bctx.fillStyle = 'rgba(120,88,42,0.4)';
+    bctx.fill();
+}
+
+function drawStone(bctx, x, y, r) {
+    const rot = Math.random() * Math.PI;
+    bctx.beginPath(); bctx.ellipse(x, y + r * 0.18, r * 0.95, r * 0.8, rot, 0, Math.PI * 2);
+    bctx.fillStyle = 'rgba(0,0,0,0.16)'; bctx.fill();
+    bctx.beginPath(); bctx.ellipse(x, y, r * 0.9, r * 0.75, rot, 0, Math.PI * 2);
+    bctx.fillStyle = '#a89a86'; bctx.fill();
+    bctx.beginPath(); bctx.ellipse(x - r * 0.22, y - r * 0.28, r * 0.34, r * 0.26, rot, 0, Math.PI * 2);
+    bctx.fillStyle = 'rgba(255,255,255,0.35)'; bctx.fill();
+}
+
+function buildBackground(cols, rows) {
+    const w = cols * BG_UNIT, h = rows * BG_UNIT;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const bctx = c.getContext('2d');
+
+    bctx.fillStyle = '#5fb92e';
+    bctx.fillRect(0, 0, w, h);
+
+    // Subtle mottling for grass texture variation
+    for (let i = 0; i < cols * rows * 1.1; i++) {
+        const x = Math.random() * w, y = Math.random() * h;
+        const r = 8 + Math.random() * 22;
+        bctx.fillStyle = Math.random() < 0.5 ? 'rgba(95,195,55,0.16)' : 'rgba(45,135,20,0.14)';
+        bctx.beginPath();
+        bctx.ellipse(x, y, r, r * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
+        bctx.fill();
+    }
+
+    // Dirt patches, scattered
+    const patches = [];
+    const nPatches = Math.max(3, Math.round((cols * rows) / 32));
+    for (let i = 0; i < nPatches; i++) {
+        const cx = Math.random() * w, cy = Math.random() * h;
+        const R = BG_UNIT * (1.1 + Math.random() * 1.6);
+        patches.push({ cx, cy, R });
+        drawDirtPatch(bctx, cx, cy, R);
+    }
+
+    // Stones — a light scatter everywhere, plus denser clusters in/around dirt patches
+    for (let i = 0; i < cols * rows * 0.3; i++) {
+        drawStone(bctx, Math.random() * w, Math.random() * h, 2 + Math.random() * 3.5);
+    }
+    for (const p of patches) {
+        const n = 6 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < n; i++) {
+            const ang = Math.random() * Math.PI * 2, rad = Math.random() * p.R * 0.95;
+            drawStone(bctx, p.cx + Math.cos(ang) * rad, p.cy + Math.sin(ang) * rad, 2.5 + Math.random() * 4);
+        }
+    }
+
+    bgCanvas = c;
+}
+
 // ── Interactive grass ────────────────────────────────────────
-// A field of small blades drawn over bgImg; the snake brushes them aside as it passes,
-// and they spring back over the following frames. Rebuilt whenever CELL_COUNT changes
-// (see startGame()) so density always matches the current grid.
+// A field of small blades drawn over the procedural background; the snake brushes them
+// aside as it passes, and they spring back over the following frames. Rebuilt whenever
+// CELL_COUNT changes (see startGame()) so density always matches the current grid.
 const GRASS_PER_CELL = 2;
 const GRASS_DECAY     = 0.90;  // per-frame spring-back rate
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass bends a blade
@@ -1087,6 +1172,7 @@ function init() {
     updateAdvancedUI();
     setInterval(() => { if (gameMode === 'advanced') updateAbilityBar(); }, 200);
 
+    buildBackground(CELL_COUNT, CELL_COUNT);
     updateScoreDisplay();
     resize();
     window.addEventListener('resize', () => { resize(); if (gameState !== 'running') draw(); });
@@ -1202,9 +1288,9 @@ function startGame() {
     stopGameOver(0.3);
     const cfg = DIFFICULTIES[difficulty];
     CELL_COUNT = cfg.cells; BASE_MS = cfg.baseMs; MIN_MS = cfg.minMs; SPEED_STEP = cfg.speedStep;
-    if (!grassField || grassField.cols !== CELL_COUNT || grassField.rows !== CELL_COUNT) {
-        buildGrassField(CELL_COUNT, CELL_COUNT);
-    }
+    // Fresh every game, not just when the grid size changes — that's what makes it new each time.
+    buildBackground(CELL_COUNT, CELL_COUNT);
+    buildGrassField(CELL_COUNT, CELL_COUNT);
     const mid = Math.floor(CELL_COUNT / 2);
     snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }, { x:mid-4, y:mid }];
     prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
@@ -1608,10 +1694,10 @@ function draw() {
     } else { shakeMag = 0; }
 
     // Background
-    if (bgImg.complete && bgImg.naturalWidth) {
-        ctx.drawImage(bgImg, 0, 0, size, size);
+    if (bgCanvas) {
+        ctx.drawImage(bgCanvas, 0, 0, bgCanvas.width, bgCanvas.height, 0, 0, size, size);
     } else {
-        ctx.fillStyle = '#111'; ctx.fillRect(0,0,size,size);
+        ctx.fillStyle = '#5fb92e'; ctx.fillRect(0,0,size,size);
     }
     drawGrassField(cell);
 
