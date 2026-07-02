@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.55';
+const VERSION = 'v1.56';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -297,6 +297,15 @@ const GRASS_VARIANTS = [
     { color: 'rgba(85,172,52,0.44)', width: 1.35 },
 ];
 
+// Ambient breeze — only a fraction of blades sway (cheap: skips the sin() call entirely
+// for the rest), each with its own phase/amplitude plus a spatial term so the sway reads
+// as a wave passing across the field rather than every blade twitching in lockstep. Fades
+// out as a blade's snake-bend takes over instead of fighting it.
+const GRASS_WIND_PERCENT = 0.28;
+const GRASS_WIND_SPEED   = 1.4;   // radians/sec
+const GRASS_WIND_SPATIAL = 0.35;  // spatial frequency of the wave, per cell
+const GRASS_WIND_DIR     = (() => { const m = Math.hypot(0.6, 0.35); return { x: 0.6/m, y: 0.35/m }; })();
+
 function onDirt(x, y) {
     for (const p of dirtPatches) {
         if (Math.hypot(x - p.cx, y - p.cy) < p.R * 0.88) return true;
@@ -314,6 +323,7 @@ function buildGrassField(cols, rows) {
                 const ox = Math.random();
                 const oy = Math.random();
                 if (onDirt(cx + ox, cy + oy)) continue;
+                const hasWind = Math.random() < GRASS_WIND_PERCENT;
                 blades.push({
                     cx, cy, ox, oy,
                     tilt: (Math.random() - 0.5) * 0.35,
@@ -321,6 +331,9 @@ function buildGrassField(cols, rows) {
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
                     tbx: 0, tby: 0,   // target bend set by bendGrassAt
+                    hasWind,
+                    windPhase: hasWind ? Math.random() * Math.PI * 2 : 0,
+                    windAmp:   hasWind ? 0.06 + Math.random() * 0.09 : 0,
                 });
             }
         }
@@ -384,6 +397,7 @@ function updateGrassTransitions() {
 // blade count.
 function drawGrassField(cell) {
     if (!grassField) return;
+    const nowSec = performance.now() / 1000;
     ctx.save();
     ctx.lineCap = 'round';
     for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
@@ -403,6 +417,15 @@ function drawGrassField(cell) {
             const lean = Math.min(1, bendMag / GRASS_PUSH);
             let dx = b.tilt * (1 - lean) + (bendMag > 1e-6 ? (b.bx / bendMag) * lean : 0);
             let dy = -1 * (1 - lean)     + (bendMag > 1e-6 ? (b.by / bendMag) * lean : 0);
+
+            // Ambient breeze — fades out as the snake's bend takes over so it doesn't
+            // fight it, spatial term makes it read as a wave crossing the field.
+            if (b.hasWind) {
+                const wave = Math.sin(nowSec * GRASS_WIND_SPEED + b.windPhase + (b.cx + b.cy) * GRASS_WIND_SPATIAL) * b.windAmp * (1 - lean);
+                dx += GRASS_WIND_DIR.x * wave;
+                dy += GRASS_WIND_DIR.y * wave;
+            }
+
             const dmag = Math.hypot(dx, dy) || 1;
             dx /= dmag; dy /= dmag;
 
