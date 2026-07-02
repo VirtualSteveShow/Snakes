@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.40';
+const VERSION = 'v1.41';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -143,6 +143,27 @@ let tickMs      = BASE_MS;
 let deathTime   = 0;
 let foodPulse   = 0;
 let optionsOpen = false;
+
+// ── Continuous movement ──────────────────────────────────────────
+// prevSnake holds grid positions from just before the most recent tick, so draw() can
+// slide each segment smoothly toward its new cell instead of snapping tick to tick.
+let prevSnake   = [];
+let curEffMs    = BASE_MS; // interval currently governing tick pacing (set each frame in loop())
+let renderSnake = [];      // interpolated snake used by all render code; rebuilt once per draw()
+
+function updateRenderSnake(now) {
+    if (gameState !== 'running' || shopOpen || !snake.length || now < lastTick) {
+        // now < lastTick happens during the post-lunge pause, which parks lastTick in the
+        // future as a scheduling hack — nothing is moving then, so show the settled position.
+        renderSnake = snake;
+        return;
+    }
+    const t = Math.max(0, Math.min(1, curEffMs > 0 ? (now - lastTick) / curEffMs : 1));
+    renderSnake = snake.map((s, i) => {
+        const p = i < prevSnake.length ? prevSnake[i] : s;
+        return { x: p.x + (s.x - p.x) * t, y: p.y + (s.y - p.y) * t };
+    });
+}
 
 
 // ── Visual juice state ────────────────────────────────────────
@@ -1090,6 +1111,8 @@ function startGame() {
     CELL_COUNT = cfg.cells; BASE_MS = cfg.baseMs; MIN_MS = cfg.minMs; SPEED_STEP = cfg.speedStep;
     const mid = Math.floor(CELL_COUNT / 2);
     snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }, { x:mid-4, y:mid }];
+    prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
+    renderSnake = snake;
     dir       = 'right'; nextDir = 'right';
     score     = 0; tickMs = BASE_MS; deathTime = 0; foodPulse = 0;
     lungeQueue = 0; lungePauseUntil = 0; tongueFlickBorn = -Infinity;
@@ -1125,6 +1148,7 @@ function spawnFood() {
 }
 
 function tick() {
+    prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
     const cell = canvas.width / CELL_COUNT;
     dir = nextDir;
     const nx = snake[0].x + (dir==='right'?1: dir==='left'?-1:0);
@@ -1408,6 +1432,7 @@ function loop(now) {
     requestAnimationFrame(loop);
     if (gameState === 'running' && !shopOpen) {
         if (lungeQueue > 0) {
+            curEffMs = 35;
             if (now - lastTick >= 35) {
                 lastTick = now; tick(); lungeQueue--;
                 if (lungeQueue === 0) { lungePauseUntil = now + 350; lastTick = lungePauseUntil; }
@@ -1416,9 +1441,11 @@ function loop(now) {
             let effMs = tickMs;
             if (holdBoost) effMs = Math.max(MIN_MS * 0.55, tickMs * 0.45);
             else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;
+            curEffMs = effMs;
             if (now - lastTick >= effMs && now >= lungePauseUntil) { lastTick = now; tick(); }
         }
     }
+    updateRenderSnake(now);
     // Snake slide-in intro
     if (gameState === 'entering') {
         const t = Math.min(1, (now - enterStart) / ENTER_DUR);
@@ -1631,14 +1658,14 @@ function drawGrape(fx, fy, r) {
 
 function drawTongueFlick(cell) {
     const age = performance.now() - tongueFlickBorn;
-    if (age > 750 || !snake.length) return;
+    if (age > 750 || !renderSnake.length) return;
     const t = age / 750;
     const phase = (t * 2) % 1;
     const ext = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
     if (ext < 0.02) return;
     const hw  = cell / 2;
-    const hx  = snake[0].x * cell + hw;
-    const hy  = snake[0].y * cell + hw;
+    const hx  = renderSnake[0].x * cell + hw;
+    const hy  = renderSnake[0].y * cell + hw;
     const ddx = dir==='right'?1: dir==='left'?-1:0;
     const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
     const px  = -ddy, py = ddx;
@@ -1689,8 +1716,8 @@ function drawMouth(cell) {
     const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
     const px  = -ddy, py = ddx;
     const rLong = cell * 0.70, rShort = cell * 0.44;
-    const hcx = snake[0].x*cell+hw + ddx*cell*0.20;
-    const hcy = snake[0].y*cell+hw + ddy*cell*0.20;
+    const hcx = renderSnake[0].x*cell+hw + ddx*cell*0.20;
+    const hcy = renderSnake[0].y*cell+hw + ddy*cell*0.20;
 
     const tipX  = hcx + ddx*rLong*0.98, tipY  = hcy + ddy*rLong*0.98;
     const backX = hcx + ddx*rLong*(0.98 - 0.95*amt), backY = hcy + ddy*rLong*(0.98 - 0.95*amt);
@@ -1911,7 +1938,8 @@ function setHandedness(h) {
 }
 
 function drawSnakeSmooth(cell) {
-    if (!snake.length) return;
+    if (!renderSnake.length) return;
+    const rs    = renderSnake;
     const hw    = cell / 2;
     const bodyW = cell * 0.80;
     const ddx = dir==='right'?1: dir==='left'?-1:0;
@@ -1920,16 +1948,16 @@ function drawSnakeSmooth(cell) {
     const rLong      = cell * 0.70;
     const rShort     = cell * 0.44;
     const headAngle  = Math.atan2(ddy, ddx);
-    const hcx = snake[0].x*cell+hw + ddx*headOffset;
-    const hcy = snake[0].y*cell+hw + ddy*headOffset;
+    const hcx = rs[0].x*cell+hw + ddx*headOffset;
+    const hcy = rs[0].y*cell+hw + ddy*headOffset;
 
     // Body is constant width the whole way — the tail just ends in the stroke's own round
     // cap (lineCap: 'round' below), same as classic Snake's rounded tail end. No taper.
     function path() {
         ctx.beginPath();
-        ctx.moveTo(snake[0].x*cell+hw, snake[0].y*cell+hw);
-        for (let i = 1; i < snake.length; i++)
-            ctx.lineTo(snake[i].x*cell+hw, snake[i].y*cell+hw);
+        ctx.moveTo(rs[0].x*cell+hw, rs[0].y*cell+hw);
+        for (let i = 1; i < rs.length; i++)
+            ctx.lineTo(rs[i].x*cell+hw, rs[i].y*cell+hw);
     }
 
     ctx.save();
@@ -1963,10 +1991,10 @@ function drawSnakeSmooth(cell) {
         ctx.strokeStyle = 'rgba(10, 55, 10, 0.30)';
         ctx.lineWidth   = Math.max(1.5, cell * 0.08);
         ctx.lineCap     = 'round';
-        const last = snake.length - 1;
+        const last = rs.length - 1;
         for (let i = 0; i < last; i++) {
-            const x0  = snake[i].x     * cell + hw, y0  = snake[i].y     * cell + hw;
-            const x1  = snake[i + 1].x * cell + hw, y1  = snake[i + 1].y * cell + hw;
+            const x0  = rs[i].x     * cell + hw, y0  = rs[i].y     * cell + hw;
+            const x1  = rs[i + 1].x * cell + hw, y1  = rs[i + 1].y * cell + hw;
             const tdx = (x1 - x0) / cell, tdy = (y1 - y0) / cell; // unit toward tail
             const pax = -tdy, pay = tdx;                            // unit perpendicular
             const fracs = i === 0       ? [0.46, 0.73]
@@ -2014,7 +2042,7 @@ function drawSnakeSmooth(cell) {
 
     ctx.restore();
     drawMouth(cell);
-    drawEyes(snake[0], cell);
+    drawEyes(rs[0], cell);
 
     // Speed lines while lunging
     if (lungeQueue > 0) {
@@ -2022,7 +2050,7 @@ function drawSnakeSmooth(cell) {
         const ddx2 = dir==='right'?1: dir==='left'?-1:0;
         const ddy2 = dir==='down' ?1: dir==='up'  ?-1:0;
         const px2 = -ddy2, py2 = ddx2;
-        const hx2 = snake[0].x*cell + hw2, hy2 = snake[0].y*cell + hw2;
+        const hx2 = rs[0].x*cell + hw2, hy2 = rs[0].y*cell + hw2;
         ctx.save();
         ctx.lineCap = 'round';
         for (let i = -1; i <= 1; i++) {
