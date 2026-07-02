@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.60';
+const VERSION = 'v1.55';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -283,19 +283,9 @@ function buildBackground(cols, rows) {
 // until the snake passes through that exact cell again (from whatever direction it's
 // heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
 // always matches the current grid.
-//
-// At this density, thick semi-transparent round-capped strokes are expensive to
-// rasterize — redrawing the whole field every frame measured at ~7fps. Settled blades
-// (not currently mid-squish) are static from frame to frame, so they're baked once into
-// small per-tile offscreen canvases (GRASS_TILE_CELLS x GRASS_TILE_CELLS cells each) and
-// just blitted via drawImage(); only a tile whose blades actually changed gets
-// re-rasterized, and only that tile — not the whole field. Only blades still mid-squish
-// are redrawn live every frame.
 const GRASS_PER_CELL = 96;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
-const GRASS_TILE_CELLS = 4;    // grid cells per side of one tile's cached canvas
 let grassField  = null; // { cols, rows, blades, byCell: Map }
-let grassTiles  = null; // { cols, rows, cell, canvases: Map<tileKey, canvas> }
 
 // Discrete color+width combos rather than one fixed look — each blade is assigned one at
 // build time (variant), and rendering batches by variant (one stroke() call per variant,
@@ -343,7 +333,6 @@ function buildGrassField(cols, rows) {
     }
     grassField = { cols, rows, blades, byCell };
     grassTransitioning = [];
-    grassTiles = null; // rebuilt lazily by drawGrassField once cell size is known
 }
 
 // The body flattens a strip straight down its centerline and shoulders the grass on
@@ -372,18 +361,13 @@ function bendGrassAt(cx, cy, dirx, diry) {
         }
         if (!grassTransitioning.includes(b)) grassTransitioning.push(b);
     }
-    // Pull the tile out of its cached image immediately (it needs live rendering again
-    // now), otherwise the stale settled shape shows through underneath it.
-    markGrassTileDirty(cx, cy);
 }
 
 // Eases each disturbed blade's rendered bend (bx/by) toward its target (tbx/tby) over
 // several frames instead of snapping instantly — gives the "squish" an actual physical
 // transition. Only blades mid-transition are touched, so cost stays proportional to
-// recent motion, not total field size. Once a blade settles, its tile gets rebaked so it
-// stops needing a live redraw every frame.
+// recent motion, not total field size.
 function updateGrassTransitions() {
-    const touchedTiles = new Set();
     for (let i = grassTransitioning.length - 1; i >= 0; i--) {
         const b = grassTransitioning[i];
         b.bx += (b.tbx - b.bx) * GRASS_EASE;
@@ -391,101 +375,34 @@ function updateGrassTransitions() {
         if (Math.abs(b.tbx - b.bx) < 0.004 && Math.abs(b.tby - b.by) < 0.004) {
             b.bx = b.tbx; b.by = b.tby;
             grassTransitioning.splice(i, 1);
-            touchedTiles.add(tileKeyFor(b.cx, b.cy));
         }
     }
-    for (const key of touchedTiles) {
-        // Rebuilding while a sibling blade in the same tile is still mid-transition would
-        // bake its current, still-moving position into the cache — it'd then be drawn
-        // twice (once frozen in the tile, once live from grassTransitioning) until it
-        // finally settles, leaving a permanent ghost/duplicate behind in that tile. Wait
-        // for every blade in the tile to actually finish before baking it.
-        const stillPending = grassTransitioning.some(b => tileKeyFor(b.cx, b.cy) === key);
-        if (!stillPending) rebuildGrassTile(key);
-    }
 }
 
-function tileKeyFor(cx, cy) {
-    return Math.floor(cy / GRASS_TILE_CELLS) * grassTiles.cols + Math.floor(cx / GRASS_TILE_CELLS);
-}
-
-function markGrassTileDirty(cx, cy) {
-    if (!grassTiles) return;
-    const canvas = grassTiles.canvases.get(tileKeyFor(cx, cy));
-    if (canvas) canvas.dirty = true; // wiped and skipped next draw until it's rebuilt
-}
-
-// Tile pixel bounds computed the same way for every caller (canvas sizing, content
-// offset, and draw position all use this) — a tile's right/bottom edge is always exactly
-// the next tile's left/top edge (both Math.round of the same expression), so there's no
-// sub-pixel gap or overlap between adjacent cached tiles. Sizing width/height off an
-// independent Math.ceil() while drawImage used the unrounded position was exactly that
-// mismatch, and it's what showed up as visible seams once real tiles started rebuilding.
-function tileBounds(tx, ty, cell) {
-    const x0 = Math.round(tx * GRASS_TILE_CELLS * cell);
-    const y0 = Math.round(ty * GRASS_TILE_CELLS * cell);
-    const x1 = Math.round((tx + 1) * GRASS_TILE_CELLS * cell);
-    const y1 = Math.round((ty + 1) * GRASS_TILE_CELLS * cell);
-    return { x0, y0, w: x1 - x0, h: y1 - y0 };
-}
-
-function buildGrassTiles(cell) {
-    const cols = Math.ceil(grassField.cols / GRASS_TILE_CELLS);
-    const rows = Math.ceil(grassField.rows / GRASS_TILE_CELLS);
-    grassTiles = { cols, rows, cell, canvases: new Map() };
-    for (let ty = 0; ty < rows; ty++)
-        for (let tx = 0; tx < cols; tx++)
-            rebuildGrassTile(ty * cols + tx);
-}
-
-// Rebuilds exactly one tile's cached canvas from the current (settled) state of the
-// blades whose base cell falls inside it — the only per-frame cost this incurs normally
-// is a drawImage(); the actual re-rasterization only happens for tiles a blade just
-// settled in.
-function rebuildGrassTile(key) {
-    const tx = key % grassTiles.cols, ty = Math.floor(key / grassTiles.cols);
-    const cell = grassTiles.cell;
-    const { x0, y0, w, h } = tileBounds(tx, ty, cell);
-    let canvas = grassTiles.canvases.get(key);
-    if (!canvas) { canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; grassTiles.canvases.set(key, canvas); }
-    else if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    const tctx = canvas.getContext('2d');
-    tctx.clearRect(0, 0, w, h);
-    tctx.save();
-    tctx.translate(-x0, -y0);
-    const blades = [];
-    const cy0 = ty * GRASS_TILE_CELLS, cy1 = Math.min(cy0 + GRASS_TILE_CELLS, grassField.rows);
-    const cx0 = tx * GRASS_TILE_CELLS, cx1 = Math.min(cx0 + GRASS_TILE_CELLS, grassField.cols);
-    for (let cy = cy0; cy < cy1; cy++)
-        for (let cx = cx0; cx < cx1; cx++) {
-            const list = grassField.byCell.get(cy * grassField.cols + cx);
-            if (list) for (const b of list) blades.push(b);
-        }
-    strokeBlades(tctx, blades, cell);
-    tctx.restore();
-    canvas.dirty = false;
-}
-
-// Shared per-blade path builder used by both the tile baker and the live per-frame
-// overlay — computes a fixed-length tip that blends from upright toward the bend
-// direction rather than adding the bend offset on top of the upright tip, which would
-// stretch bent blades longer than unbent ones.
-function strokeBlades(targetCtx, blades, cell) {
-    targetCtx.lineCap = 'round';
+// Batched by variant into a handful of paths (one stroke() call each) instead of one
+// stroke() per blade — thousands of individual stroke calls was the actual cost, not the
+// blade count.
+function drawGrassField(cell) {
+    if (!grassField) return;
+    ctx.save();
+    ctx.lineCap = 'round';
     for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
         const variant = GRASS_VARIANTS[vi];
-        targetCtx.beginPath();
-        for (const b of blades) {
+        ctx.beginPath();
+        for (const b of grassField.blades) {
             if (b.variant !== vi) continue;
             const baseX = (b.cx + b.ox) * cell;
             const baseY = (b.cy + b.oy) * cell;
             const len   = b.len * cell;
 
+            // Blend direction from upright (plus a little natural tilt) toward the bend
+            // direction as bend magnitude grows, rather than adding the bend offset on
+            // top of the upright tip — that stretched bent blades noticeably longer than
+            // unbent ones instead of just leaning them over at a constant length.
             const bendMag = Math.hypot(b.bx, b.by);
             const lean = Math.min(1, bendMag / GRASS_PUSH);
             let dx = b.tilt * (1 - lean) + (bendMag > 1e-6 ? (b.bx / bendMag) * lean : 0);
             let dy = -1 * (1 - lean)     + (bendMag > 1e-6 ? (b.by / bendMag) * lean : 0);
-
             const dmag = Math.hypot(dx, dy) || 1;
             dx /= dmag; dy /= dmag;
 
@@ -496,43 +413,13 @@ function strokeBlades(targetCtx, blades, cell) {
             const midX = baseX + dx * len * 0.5 + perpX * bulge;
             const midY = baseY + dy * len * 0.5 + perpY * bulge;
 
-            targetCtx.moveTo(baseX, baseY);
-            targetCtx.quadraticCurveTo(midX, midY, tipX, tipY);
+            ctx.moveTo(baseX, baseY);
+            ctx.quadraticCurveTo(midX, midY, tipX, tipY);
         }
-        targetCtx.strokeStyle = variant.color;
-        targetCtx.lineWidth = Math.max(1, cell * 0.06 * variant.width);
-        targetCtx.stroke();
+        ctx.strokeStyle = variant.color;
+        ctx.lineWidth = Math.max(1, cell * 0.06 * variant.width);
+        ctx.stroke();
     }
-}
-
-function drawGrassField(cell) {
-    if (!grassField) return;
-    if (!grassTiles || grassTiles.cell !== cell) buildGrassTiles(cell);
-
-    for (const [key, canvas] of grassTiles.canvases) {
-        if (canvas.dirty) continue; // mid-squish in this tile — covered by the live pass below
-        const tx = key % grassTiles.cols, ty = Math.floor(key / grassTiles.cols);
-        const { x0, y0 } = tileBounds(tx, ty, cell);
-        ctx.drawImage(canvas, x0, y0);
-    }
-
-    // Live overlay: anything still easing into place, plus anything sitting in a dirty
-    // tile that hasn't been rebaked yet.
-    const dynamic = new Set(grassTransitioning);
-    for (const [key, canvas] of grassTiles.canvases) {
-        if (!canvas.dirty) continue;
-        const tx = key % grassTiles.cols, ty = Math.floor(key / grassTiles.cols);
-        const cy0 = ty * GRASS_TILE_CELLS, cy1 = Math.min(cy0 + GRASS_TILE_CELLS, grassField.rows);
-        const cx0 = tx * GRASS_TILE_CELLS, cx1 = Math.min(cx0 + GRASS_TILE_CELLS, grassField.cols);
-        for (let cy = cy0; cy < cy1; cy++)
-            for (let cx = cx0; cx < cx1; cx++) {
-                const list = grassField.byCell.get(cy * grassField.cols + cx);
-                if (list) for (const b of list) dynamic.add(b);
-            }
-    }
-
-    ctx.save();
-    strokeBlades(ctx, dynamic, cell);
     ctx.restore();
 }
 let handedness      = localStorage.getItem('snake_hand') || 'right';
