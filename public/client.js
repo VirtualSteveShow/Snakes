@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.54';
+const VERSION = 'v1.55';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -235,7 +235,10 @@ function buildBackground(cols, rows) {
     c.width = w; c.height = h;
     const bctx = c.getContext('2d');
 
-    bctx.fillStyle = '#5fb92e';
+    // Soil brown under the grass instead of flat green — with blades now dense and thick
+    // enough to be the dominant color, showing bare earth in the gaps between them reads
+    // more like real ground than another shade of green would.
+    bctx.fillStyle = '#5c4526';
     bctx.fillRect(0, 0, w, h);
 
     // Subtle mottling for grass texture variation
@@ -316,7 +319,8 @@ function buildGrassField(cols, rows) {
                     tilt: (Math.random() - 0.5) * 0.35,
                     len:  0.28 + Math.random() * 0.17,
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
-                    bx: 0, by: 0,
+                    bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
+                    tbx: 0, tby: 0,   // target bend set by bendGrassAt
                 });
             }
         }
@@ -328,6 +332,7 @@ function buildGrassField(cols, rows) {
         byCell.get(key).push(b);
     }
     grassField = { cols, rows, blades, byCell };
+    grassTransitioning = [];
 }
 
 // The body flattens a strip straight down its centerline and shoulders the grass on
@@ -336,6 +341,8 @@ function buildGrassField(cols, rows) {
 // center, based on where the blade sits across the cell relative to the direction of travel.
 const GRASS_CENTER_HALFWIDTH = 0.13; // fraction of a cell either side of centerline that stays "under" the body
 const GRASS_SIDE_MIX = 0.55;          // how much of the side-push is sideways vs forward-lean
+const GRASS_EASE = 0.22;              // per-frame fraction of the way from current bend to target
+let grassTransitioning = []; // blades whose rendered bend hasn't caught up to their target yet
 
 function bendGrassAt(cx, cy, dirx, diry) {
     if (!grassField) return;
@@ -345,12 +352,29 @@ function bendGrassAt(cx, cy, dirx, diry) {
     for (const b of list) {
         const perpOffset = (b.ox - 0.5) * px + (b.oy - 0.5) * py;
         if (Math.abs(perpOffset) <= GRASS_CENTER_HALFWIDTH) {
-            b.bx = dirx * GRASS_PUSH;
-            b.by = diry * GRASS_PUSH;
+            b.tbx = dirx * GRASS_PUSH;
+            b.tby = diry * GRASS_PUSH;
         } else {
             const side = perpOffset > 0 ? 1 : -1;
-            b.bx = (dirx * (1 - GRASS_SIDE_MIX) + px * side * GRASS_SIDE_MIX) * GRASS_PUSH;
-            b.by = (diry * (1 - GRASS_SIDE_MIX) + py * side * GRASS_SIDE_MIX) * GRASS_PUSH;
+            b.tbx = (dirx * (1 - GRASS_SIDE_MIX) + px * side * GRASS_SIDE_MIX) * GRASS_PUSH;
+            b.tby = (diry * (1 - GRASS_SIDE_MIX) + py * side * GRASS_SIDE_MIX) * GRASS_PUSH;
+        }
+        if (!grassTransitioning.includes(b)) grassTransitioning.push(b);
+    }
+}
+
+// Eases each disturbed blade's rendered bend (bx/by) toward its target (tbx/tby) over
+// several frames instead of snapping instantly — gives the "squish" an actual physical
+// transition. Only blades mid-transition are touched, so cost stays proportional to
+// recent motion, not total field size.
+function updateGrassTransitions() {
+    for (let i = grassTransitioning.length - 1; i >= 0; i--) {
+        const b = grassTransitioning[i];
+        b.bx += (b.tbx - b.bx) * GRASS_EASE;
+        b.by += (b.tby - b.by) * GRASS_EASE;
+        if (Math.abs(b.tbx - b.bx) < 0.004 && Math.abs(b.tby - b.by) < 0.004) {
+            b.bx = b.tbx; b.by = b.tby;
+            grassTransitioning.splice(i, 1);
         }
     }
 }
@@ -1759,6 +1783,7 @@ function loop(now) {
         }
     }
     updateRenderSnake(now);
+    updateGrassTransitions();
     // Snake slide-in intro
     if (gameState === 'entering') {
         const t = Math.min(1, (now - enterStart) / ENTER_DUR);
@@ -1795,7 +1820,7 @@ function draw() {
     if (bgCanvas) {
         ctx.drawImage(bgCanvas, 0, 0, bgCanvas.width, bgCanvas.height, 0, 0, size, size);
     } else {
-        ctx.fillStyle = '#5fb92e'; ctx.fillRect(0,0,size,size);
+        ctx.fillStyle = '#5c4526'; ctx.fillRect(0,0,size,size);
     }
     drawGrassField(cell);
 
