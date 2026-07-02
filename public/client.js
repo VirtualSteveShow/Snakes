@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.53';
+const VERSION = 'v1.54';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -284,6 +284,16 @@ const GRASS_PER_CELL = 96;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 
+// Discrete color+width combos rather than one fixed look — each blade is assigned one at
+// build time (variant), and rendering batches by variant (one stroke() call per variant,
+// same idea as the old 2-tone split, just richer) so this stays cheap regardless of count.
+const GRASS_VARIANTS = [
+    { color: 'rgba(26, 92,16,0.58)', width: 0.85 },
+    { color: 'rgba(40,122,20,0.52)', width: 1.05 },
+    { color: 'rgba(58,145,32,0.50)', width: 1.20 },
+    { color: 'rgba(85,172,52,0.44)', width: 1.35 },
+];
+
 function onDirt(x, y) {
     for (const p of dirtPatches) {
         if (Math.hypot(x - p.cx, y - p.cy) < p.R * 0.88) return true;
@@ -305,7 +315,7 @@ function buildGrassField(cols, rows) {
                     cx, cy, ox, oy,
                     tilt: (Math.random() - 0.5) * 0.35,
                     len:  0.28 + Math.random() * 0.17,
-                    tone: Math.random(),
+                    variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,
                 });
             }
@@ -345,17 +355,18 @@ function bendGrassAt(cx, cy, dirx, diry) {
     }
 }
 
-// Batched by tone into two paths (one stroke() call each) instead of one stroke() per
-// blade — thousands of individual stroke calls was the actual cost, not the blade count.
+// Batched by variant into a handful of paths (one stroke() call each) instead of one
+// stroke() per blade — thousands of individual stroke calls was the actual cost, not the
+// blade count.
 function drawGrassField(cell) {
     if (!grassField) return;
     ctx.save();
     ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(1, cell * 0.032);
-    for (const tone of [0, 1]) {
+    for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
+        const variant = GRASS_VARIANTS[vi];
         ctx.beginPath();
         for (const b of grassField.blades) {
-            if ((b.tone < 0.5) !== (tone === 0)) continue;
+            if (b.variant !== vi) continue;
             const baseX = (b.cx + b.ox) * cell;
             const baseY = (b.cy + b.oy) * cell;
             const len   = b.len * cell;
@@ -381,7 +392,8 @@ function drawGrassField(cell) {
             ctx.moveTo(baseX, baseY);
             ctx.quadraticCurveTo(midX, midY, tipX, tipY);
         }
-        ctx.strokeStyle = tone === 0 ? 'rgba(35,110,25,0.5)' : 'rgba(75,160,55,0.45)';
+        ctx.strokeStyle = variant.color;
+        ctx.lineWidth = Math.max(1, cell * 0.06 * variant.width);
         ctx.stroke();
     }
     ctx.restore();
