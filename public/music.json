@@ -1,0 +1,4904 @@
+{
+  "bpm": 128,
+  "stepCount": 16,
+  "patterns": [
+    {
+      "name": "Bar 1",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 2",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 5,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 3",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 4",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 5",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 6,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "F",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "F",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "F",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "F",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "F",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 6",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "F",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "F",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 7",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "D",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bar 8",
+      "tracks": [
+        {
+          "name": "Melody",
+          "wave": "sq",
+          "oct": 5,
+          "vol": 0.65,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "A",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "D",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "E",
+              "oct": 5,
+              "len": 2
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 5,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 5,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "Bass",
+          "wave": "tri",
+          "oct": 3,
+          "vol": 0.72,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "G",
+              "oct": 3,
+              "len": 4
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 3,
+              "len": 1
+            }
+          ]
+        },
+        {
+          "name": "HiHat",
+          "wave": "nse",
+          "oct": 4,
+          "vol": 0.38,
+          "mute": false,
+          "solo": false,
+          "steps": [
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": true,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            },
+            {
+              "on": false,
+              "note": "C",
+              "oct": 4,
+              "len": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "song": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

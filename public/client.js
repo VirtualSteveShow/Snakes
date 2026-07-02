@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.32';
+const VERSION = 'v1.33';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -27,46 +27,53 @@ const ENTER_DUR       = 550;   // snake slide-in ms
 const FOOD_BOUNCE_DUR = 480;   // food throw-in ms
 const FLY_ENTER_DUR   = 500;   // fly slide-in ms
 
-// ── Note frequencies (Hz) ─────────────────────────────────────
-const F = {
-    R:0,
-    C3:130.81, D3:146.83, E3:164.81, G3:196.00, A3:220.00,
-    C4:261.63, D4:293.66, E4:329.63, G4:392.00, A4:440.00,
-    C5:523.25, D5:587.33, E5:659.25, G5:783.99, A5:880.00,
-};
-
-// ── Music sequences (16th-note grid, 64 steps = 4 bars @ 128 BPM) ──
-// Each entry: [frequency_hz, step_count]
-const BPM  = 128;
-const STEP = 60 / BPM / 4; // one 16th note ≈ 0.117 s
-
-const MELODY_SEQ = [
-    // bar 1
-    [F.E5,2],[F.G5,2],[F.A5,2],[F.G5,2],  [F.E5,2],[F.C5,2],[F.D5,4],
-    // bar 2
-    [F.E5,2],[F.G5,2],[F.A5,2],[F.G5,2],  [F.E5,2],[F.D5,2],[F.C5,4],
-    // bar 3
-    [F.G5,2],[F.A5,2],[F.G5,2],[F.E5,2],  [F.G5,2],[F.A5,2],[F.G5,4],
-    // bar 4
-    [F.A5,2],[F.G5,2],[F.E5,2],[F.D5,2],  [F.E5,2],[F.G5,2],[F.E5,2],[F.C5,2],
-];
-const BASS_SEQ = [
-    [F.C3,4],[F.C3,4],[F.G3,4],[F.G3,4],  // bar 1
-    [F.C3,4],[F.C3,4],[F.G3,4],[F.G3,4],  // bar 2
-    [F.A3,4],[F.A3,4],[F.G3,4],[F.G3,4],  // bar 3
-    [F.G3,4],[F.G3,4],[F.G3,4],[F.C3,4],  // bar 4 — resolves to tonic for seamless loop
-];
-
-function flattenSeq(seq) {
-    const out = [];
-    for (const [freq, dur] of seq) {
-        out.push(freq);
-        for (let i = 1; i < dur; i++) out.push(-1); // hold — no new note
-    }
-    return out;
+// ── Music: tracker-style song loaded from music.json ───────────
+// Format: { bpm, stepCount, patterns: [{ name, tracks: [{ name, wave, oct, vol, mute, steps: [{on,note,oct,len}] }] }], song: [patternIndex, ...] }
+// "song" arranges patterns in play order (can repeat/reorder bars for a longer, varied,
+// non-repetitive arrangement) — swap in a new music.json to change the track, no code changes needed.
+const NOTE_SEMITONE = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11 };
+function noteFreq(note, oct) {
+    const semi = NOTE_SEMITONE[note];
+    if (semi === undefined) return 0;
+    const midi = (oct + 1) * 12 + semi;
+    return 440 * Math.pow(2, (midi - 69) / 12);
 }
-const MEL_STEPS = flattenSeq(MELODY_SEQ); // 64 entries
-const BAS_STEPS = flattenSeq(BASS_SEQ);   // 64 entries
+const WAVE_TYPE = { sq: 'square', tri: 'triangle', saw: 'sawtooth', sine: 'sine' };
+
+let BPM  = 128;
+let STEP = 60 / BPM / 4;
+let songTracks  = [];   // [{ name, wave, vol, mute, steps: [{freq,len}|null, ...] }]
+let totalSteps  = 0;
+let songReady   = false;
+
+function loadSong(data) {
+    BPM = data.bpm || 128;
+    const stepsPerBar = data.stepCount || 16;
+    STEP = 240 / BPM / stepsPerBar;
+    const order = (data.song && data.song.length) ? data.song : data.patterns.map((_, i) => i);
+    const names = [];
+    for (const p of data.patterns) for (const tr of p.tracks) if (!names.includes(tr.name)) names.push(tr.name);
+
+    songTracks = names.map(name => {
+        let wave = 'sq', vol = 0.7, mute = false;
+        const steps = [];
+        for (const patIdx of order) {
+            const pattern = data.patterns[patIdx];
+            const track = pattern.tracks.find(t => t.name === name);
+            if (!track) { for (let i = 0; i < stepsPerBar; i++) steps.push(null); continue; }
+            wave = track.wave; vol = track.vol; mute = track.mute;
+            for (let i = 0; i < stepsPerBar; i++) {
+                const s = track.steps[i];
+                steps.push(s && s.on ? { freq: noteFreq(s.note, s.oct), len: s.len } : null);
+            }
+        }
+        return { name, wave, vol, mute, steps };
+    });
+    totalSteps = songTracks.length ? songTracks[0].steps.length : 0;
+    songReady = true;
+}
+
+fetch('music.json').then(r => r.json()).then(loadSong).catch(() => {});
 
 // ── Audio state ───────────────────────────────────────────────
 let audioCtx    = null;
@@ -85,16 +92,11 @@ let hapticsOn = localStorage.getItem('snake_haptics') !== 'off';
 
 // ── WAV audio buffers ─────────────────────────────────────────
 let gameOverBuffer   = null;
-let musicBuffer      = null;
-let musicSource      = null;
-let musicFadeGain    = null;
 let gameOverSource   = null;
 let gameOverFadeGain = null;
 let _goAB  = null;
-let _musAB = null;
 
 fetch('gameover.wav').then(r => r.arrayBuffer()).then(ab => { _goAB  = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
-fetch('music.wav'   ).then(r => r.arrayBuffer()).then(ab => { _musAB = ab; if (audioCtx) _decodeWavs(); }).catch(() => {});
 
 function _normalizeBuffer(buf) {
     let peak = 0;
@@ -113,10 +115,6 @@ function _decodeWavs() {
     if (_goAB && !gameOverBuffer) {
         const ab = _goAB; _goAB = null;
         audioCtx.decodeAudioData(ab).then(buf => { _normalizeBuffer(buf); gameOverBuffer = buf; }).catch(() => {});
-    }
-    if (_musAB && !musicBuffer) {
-        const ab = _musAB; _musAB = null;
-        audioCtx.decodeAudioData(ab).then(buf => { _normalizeBuffer(buf); musicBuffer = buf; }).catch(() => {});
     }
 }
 
@@ -478,8 +476,8 @@ function ensureAudio() {
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
 }
 
-// ── Audio: music sequencer ────────────────────────────────────
-function schedNote(freq, dest, t, dur, type) {
+// ── Audio: music sequencer (drives the loaded tracker song) ────
+function schedNote(freq, dest, t, dur, type, vol = 1) {
     if (freq <= 0 || !audioCtx) return;
     const osc  = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -487,65 +485,54 @@ function schedNote(freq, dest, t, dur, type) {
     osc.frequency.value = freq;
     osc.connect(gain); gain.connect(dest);
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.linearRampToValueAtTime(1, t + 0.005);
-    gain.gain.setValueAtTime(1, t + dur * 0.72);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.005);
+    gain.gain.setValueAtTime(vol, t + dur * 0.72);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.97);
     osc.start(t); osc.stop(t + dur);
 }
 
-function schedHihat(t) {
+function schedHihat(t, vol = 0.3) {
     if (!audioCtx || !noiseBuffer) return;
     const src    = audioCtx.createBufferSource(); src.buffer = noiseBuffer;
     const filter = audioCtx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 9000;
     const gain   = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.11, t);
+    gain.gain.setValueAtTime(vol, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
     src.connect(filter); filter.connect(gain); gain.connect(musicGain);
     src.start(t); src.stop(t + 0.05);
 }
 
 function schedStep(step, t) {
-    const s   = step % 64;
-    const mel = MEL_STEPS[s];
-    const bas = BAS_STEPS[s];
-    if (mel > 0) schedNote(mel, musicGain, t, STEP * 0.80, 'square');
-    if (bas > 0) schedNote(bas, musicGain, t, STEP * 3.55, 'triangle');
-    if (s % 2 === 0) schedHihat(t); // 8th-note hi-hats
+    const s = step % totalSteps;
+    for (const track of songTracks) {
+        if (track.mute) continue;
+        const note = track.steps[s];
+        if (!note) continue;
+        const dur = note.len * STEP * 0.92;
+        if (track.wave === 'nse') schedHihat(t, track.vol);
+        else schedNote(note.freq, musicGain, t, dur, WAVE_TYPE[track.wave] || 'square', track.vol);
+    }
 }
 
 function musicScheduler() {
-    if (!audioCtx) return;
+    if (!audioCtx || !totalSteps) return;
     while (nextBeat < audioCtx.currentTime + 0.12) {
         schedStep(beatIndex, nextBeat);
         nextBeat += STEP;
-        beatIndex = (beatIndex + 1) % 64;
+        beatIndex = (beatIndex + 1) % totalSteps;
     }
 }
 
 function startMusic() {
-    if (!audioCtx) return;
-    stopMusic(0.25); // fade out any previous music quickly before starting new
-    if (musicBuffer) {
-        musicFadeGain = audioCtx.createGain();
-        musicFadeGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        musicFadeGain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.65);
-        musicFadeGain.connect(musicGain);
-        musicSource = audioCtx.createBufferSource();
-        musicSource.buffer = musicBuffer;
-        musicSource.loop = true;
-        musicSource.connect(musicFadeGain);
-        musicSource.start();
-    } else {
-        nextBeat  = audioCtx.currentTime + 0.08;
-        beatIndex = 0;
-        musicTimer = setInterval(musicScheduler, 25);
-    }
+    if (!audioCtx || !songReady) return;
+    stopMusic();
+    nextBeat  = audioCtx.currentTime + 0.08;
+    beatIndex = 0;
+    musicTimer = setInterval(musicScheduler, 25);
 }
 
-function stopMusic(fadeSecs = 0.4) {
+function stopMusic() {
     if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
-    _fadeStop(musicSource, musicFadeGain, fadeSecs);
-    musicSource = null; musicFadeGain = null;
 }
 
 function playGameOver() {
