@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.47';
+const VERSION = 'v1.48';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -26,6 +26,7 @@ const FLY_SPAWN_CHANCE = 0.25;
 const ENTER_DUR       = 550;   // snake slide-in ms
 const FOOD_BOUNCE_DUR = 480;   // food throw-in ms
 const FLY_ENTER_DUR   = 500;   // fly slide-in ms
+const FLY_EXIT_DUR    = 480;   // fly flies-off-screen ms, instead of just vanishing
 
 // ── Music: tracker-style song loaded from music.json ───────────
 // Format: { bpm, stepCount, patterns: [{ name, tracks: [{ name, wave, oct, vol, mute, steps: [{on,note,oct,len}] }] }], song: [patternIndex, ...] }
@@ -180,14 +181,16 @@ let particles = [], scorePops = [], shakeMag = 0;
 const BG_UNIT = 40; // px per grid cell in the offscreen canvas
 let bgCanvas = null;
 
-function blobPath(bctx, cx, cy, R, n, jitter) {
+// Adds one blob as a subpath — does NOT call beginPath()/fill() itself, so the caller can
+// accumulate several blobs into one path and fill it once. That's what makes overlapping
+// patches merge into a single seamless shape instead of double-blending at the overlap.
+function addBlobSubpath(bctx, cx, cy, R, n, jitter) {
     const pts = [];
     for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
         const rr = R * (1 - jitter / 2 + Math.random() * jitter);
         pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
     }
-    bctx.beginPath();
     bctx.moveTo((pts[0].x + pts[n - 1].x) / 2, (pts[0].y + pts[n - 1].y) / 2);
     for (let i = 0; i < n; i++) {
         const next = pts[(i + 1) % n];
@@ -197,11 +200,17 @@ function blobPath(bctx, cx, cy, R, n, jitter) {
     bctx.closePath();
 }
 
-function drawDirtPatch(bctx, cx, cy, R) {
-    blobPath(bctx, cx, cy, R, 11 + Math.floor(Math.random() * 4), 0.5);
+// Draws every dirt patch's outer blob into one shared path (single fill), then every
+// patch's inner shading blob into another shared path (single fill) — so overlapping
+// patches read as one continuous blob instead of stacked, visibly-seamed layers.
+function drawDirtPatches(bctx, patches) {
+    bctx.beginPath();
+    for (const p of patches) addBlobSubpath(bctx, p.cx, p.cy, p.R, 11 + Math.floor(Math.random() * 4), 0.5);
     bctx.fillStyle = 'rgba(150,112,58,0.55)';
     bctx.fill();
-    blobPath(bctx, cx, cy, R * 0.62, 9 + Math.floor(Math.random() * 3), 0.5);
+
+    bctx.beginPath();
+    for (const p of patches) addBlobSubpath(bctx, p.cx, p.cy, p.R * 0.62, 9 + Math.floor(Math.random() * 3), 0.5);
     bctx.fillStyle = 'rgba(120,88,42,0.4)';
     bctx.fill();
 }
@@ -247,8 +256,8 @@ function buildBackground(cols, rows) {
         const cx = Math.random() * cols, cy = Math.random() * rows;
         const R  = 1.1 + Math.random() * 1.6;
         dirtPatches.push({ cx, cy, R });
-        drawDirtPatch(bctx, cx * BG_UNIT, cy * BG_UNIT, R * BG_UNIT);
     }
+    drawDirtPatches(bctx, dirtPatches.map(p => ({ cx: p.cx * BG_UNIT, cy: p.cy * BG_UNIT, R: p.R * BG_UNIT })));
 
     // Stones — a light scatter everywhere, plus denser clusters in/around dirt patches
     for (let i = 0; i < cols * rows * 0.3; i++) {
@@ -269,7 +278,7 @@ function buildBackground(cols, rows) {
 // A field of small blades drawn over the procedural background; the snake brushes them
 // aside as it passes, and they spring back over the following frames. Rebuilt whenever
 // CELL_COUNT changes (see startGame()) so density always matches the current grid.
-const GRASS_PER_CELL = 6;
+const GRASS_PER_CELL = 24;
 const GRASS_DECAY     = 0.90;  // per-frame spring-back rate
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass bends a blade
 const GRASS_MAX_BEND  = 0.95;
@@ -335,21 +344,26 @@ function updateGrass() {
     }
 }
 
+// Batched by tone into two paths (one stroke() call each) instead of one stroke() per
+// blade — thousands of individual stroke calls was the actual cost, not the blade count.
 function drawGrassField(cell) {
     if (!grassField) return;
     ctx.save();
     ctx.lineCap = 'round';
-    for (const b of grassField.blades) {
-        const baseX = (b.cx + b.ox) * cell;
-        const baseY = (b.cy + b.oy) * cell;
-        const len   = b.len * cell;
-        const tipX  = baseX + b.tilt * len + b.bx * cell;
-        const tipY  = baseY - len + b.by * cell;
-        ctx.strokeStyle = b.tone < 0.5 ? 'rgba(35,110,25,0.5)' : 'rgba(75,160,55,0.45)';
-        ctx.lineWidth = Math.max(1, cell * 0.032);
+    ctx.lineWidth = Math.max(1, cell * 0.032);
+    for (const tone of [0, 1]) {
         ctx.beginPath();
-        ctx.moveTo(baseX, baseY);
-        ctx.quadraticCurveTo(baseX + b.bx*cell*0.6, baseY - len*0.55, tipX, tipY);
+        for (const b of grassField.blades) {
+            if ((b.tone < 0.5) !== (tone === 0)) continue;
+            const baseX = (b.cx + b.ox) * cell;
+            const baseY = (b.cy + b.oy) * cell;
+            const len   = b.len * cell;
+            const tipX  = baseX + b.tilt * len + b.bx * cell;
+            const tipY  = baseY - len + b.by * cell;
+            ctx.moveTo(baseX, baseY);
+            ctx.quadraticCurveTo(baseX + b.bx*cell*0.6, baseY - len*0.55, tipX, tipY);
+        }
+        ctx.strokeStyle = tone === 0 ? 'rgba(35,110,25,0.5)' : 'rgba(75,160,55,0.45)';
         ctx.stroke();
     }
     ctx.restore();
@@ -364,12 +378,17 @@ let enterSlideX   = 0;
 let enterStart    = 0;
 let foodSpawnTime = 0;
 let fly           = null;   // {x, y} | null
+let flyPrev       = null;   // grid position before the most recent move, for interpolation
 let flyUntil      = 0;
 let flyTimer      = 0;
 let flyRegion     = null;   // {cx, cy, r} home zone
 let flyEntering   = false;
 let flyEnterFrom  = { x: 0, y: 0 };
 let flyEnterStart = 0;
+let flyExiting    = false;
+let flyExitFrom   = { x: 0, y: 0 };
+let flyExitTo     = { x: 0, y: 0 };
+let flyExitStart  = 0;
 let flyBuzzOsc    = null;
 let flyBuzzMod    = null;
 let flyBuzzGain   = null;
@@ -1312,7 +1331,7 @@ function startGame() {
     dir       = 'right'; nextDir = 'right';
     score     = 0; tickMs = BASE_MS; deathTime = 0; foodPulse = 0;
     lungeQueue = 0; lungePauseUntil = 0; tongueFlickBorn = -Infinity;
-    fly = null; flyUntil = 0; flyTimer = 0; flyRegion = null; flyEntering = false; stopFlyBuzz();
+    fly = null; flyPrev = null; flyUntil = 0; flyTimer = 0; flyRegion = null; flyEntering = false; flyExiting = false; stopFlyBuzz();
     holdBoost = false;
     gameState = 'entering';
     enterSlideX = -canvas.width;
@@ -1442,7 +1461,7 @@ function die(reason = 'self', ix, iy) {
     if (score > highScore) { highScore = score; updateScoreDisplay(); }
     saveProfileHighScore();
     babySnake = []; tongue = null; slowUntil = 0; shopOpen = false;
-    fly = null; flyRegion = null; flyEntering = false; stopFlyBuzz();
+    fly = null; flyPrev = null; flyRegion = null; flyEntering = false; flyExiting = false; stopFlyBuzz();
     document.getElementById('shop-overlay').classList.add('hidden');
     if (gameMode === 'advanced') updateAbilityBar();
     if (reason === 'wall') { shakeMag = 9; spawnWallImpact(ix, iy); }
@@ -1547,7 +1566,25 @@ function moveFly() {
     const picks = (zoneMoves.length && Math.random() < 0.82) ? zoneMoves : anyMoves;
     if (!picks.length) return;
     const { dx, dy } = picks[Math.floor(Math.random() * picks.length)];
+    flyPrev = { x: fly.x, y: fly.y };
     fly.x += dx; fly.y += dy;
+}
+
+// Instead of just vanishing when its lifetime is up, the fly flies off toward whichever
+// screen edge is nearest to where it currently is.
+function startFlyExit(now) {
+    flyExiting = true;
+    flyExitStart = now;
+    const cell = canvas.width / CELL_COUNT;
+    const size = canvas.width;
+    const fx = fly.x * cell + cell/2, fy = fly.y * cell + cell/2;
+    flyExitFrom = { x: fx, y: fy };
+    const distLeft = fx, distRight = size - fx, distTop = fy, distBottom = size - fy;
+    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+    flyExitTo = minDist === distLeft   ? { x: -cell,     y: fy }
+              : minDist === distRight  ? { x: size+cell, y: fy }
+              : minDist === distTop    ? { x: fx,        y: -cell }
+              :                          { x: fx,        y: size+cell };
 }
 
 function startFlyBuzz() {
@@ -1596,15 +1633,24 @@ function drawFly(cell) {
     if (!fly) return;
     const now = performance.now();
     let fx, fy;
-    if (flyEntering) {
+    if (flyExiting) {
+        const t = Math.min(1, (now - flyExitStart) / FLY_EXIT_DUR);
+        const ease = t * t; // accelerate away, like darting off startled
+        fx = flyExitFrom.x + (flyExitTo.x - flyExitFrom.x) * ease;
+        fy = flyExitFrom.y + (flyExitTo.y - flyExitFrom.y) * ease;
+    } else if (flyEntering) {
         const t = Math.min(1, (now - flyEnterStart) / FLY_ENTER_DUR);
         const ease = 1 - Math.pow(1-t, 2);
         fx = flyEnterFrom.x + (fly.x*cell+cell/2 - flyEnterFrom.x) * ease;
         fy = flyEnterFrom.y + (fly.y*cell+cell/2 - flyEnterFrom.y) * ease;
         if (t >= 1) flyEntering = false;
     } else {
-        fx = fly.x * cell + cell/2;
-        fy = fly.y * cell + cell/2;
+        // Slide from its previous cell to its current one instead of snapping, same idea
+        // as the snake's continuous movement.
+        const t  = Math.max(0, Math.min(1, (now - flyTimer) / FLY_MOVE_MS));
+        const px = flyPrev ? flyPrev.x : fly.x, py = flyPrev ? flyPrev.y : fly.y;
+        fx = (px + (fly.x - px) * t) * cell + cell/2;
+        fy = (py + (fly.y - py) * t) * cell + cell/2;
     }
     const r   = Math.max(3, cell * 0.22);
     const flap     = Math.floor(now / 80) % 2 === 0;
@@ -1692,8 +1738,14 @@ function loop(now) {
     }
     // Fly movement + despawn (independent of snake tick rate)
     if (fly && gameState === 'running' && !shopOpen) {
-        if (now - flyTimer >= FLY_MOVE_MS) { flyTimer = now; moveFly(); }
-        if (now >= flyUntil) { stopFlyBuzz(); fly = null; flyRegion = null; }
+        if (flyExiting) {
+            if (now - flyExitStart >= FLY_EXIT_DUR) {
+                stopFlyBuzz(); fly = null; flyRegion = null; flyExiting = false;
+            }
+        } else {
+            if (now - flyTimer >= FLY_MOVE_MS) { flyTimer = now; moveFly(); }
+            if (now >= flyUntil) startFlyExit(now);
+        }
     }
     draw();
 }
