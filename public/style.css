@@ -275,6 +275,13 @@ input[type="range"] {
 }
 .lb-play-btn.me { border-color: #44ff44; color: #44ff44; }
 .lb-play-btn:active { opacity: 0.7; }
+.lb-del-btn {
+    background: none; border: 1px solid #2a2a2a; color: #663333;
+    font-size: 12px; width: 24px; height: 24px; border-radius: 4px;
+    cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.lb-del-btn:active { opacity: 0.7; border-color: #ff4444; color: #ff4444; }
 
 /* Profile header: larger avatar + name, top of screen, tap to change photo */
 #profile-header {

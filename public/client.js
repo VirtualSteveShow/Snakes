@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.31';
+const VERSION = 'v1.32';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -278,6 +278,19 @@ function loadProfileHighScore() {
     updateScoreDisplay();
 }
 
+function deleteProfile(id) {
+    const ps = _profiles().filter(p => p.id !== id);
+    _saveProfiles(ps);
+    if (_currentId() === id) {
+        if (ps.length > 0) {
+            switchProfile(ps[0].id);
+        } else {
+            localStorage.removeItem('snake_current_profile');
+            loadProfileHighScore();
+        }
+    }
+}
+
 function switchProfile(id) {
     localStorage.setItem('snake_current_profile', id);
     loadProfileHighScore();
@@ -362,7 +375,18 @@ function showLeaderboard() {
         btn.className = 'lb-play-btn' + (p.id === currentId ? ' me' : '');
         btn.textContent = p.id === currentId ? '✓ You' : '▶ Play';
         btn.onclick = () => { switchProfile(p.id); document.getElementById('leaderboard-overlay').classList.add('hidden'); };
-        row.append(rank, av, info, btn);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'lb-del-btn';
+        delBtn.textContent = '🗑';
+        delBtn.title = 'Delete profile';
+        delBtn.onclick = () => {
+            if (confirm(`Delete profile "${p.name}"? This can't be undone.`)) {
+                deleteProfile(p.id);
+                if (!getCurrentProfile()) { document.getElementById('leaderboard-overlay').classList.add('hidden'); showProfileCreation(); }
+                else showLeaderboard();
+            }
+        };
+        row.append(rank, av, info, btn, delBtn);
         list.appendChild(row);
     });
     // Reset scores button with math confirmation
@@ -560,6 +584,7 @@ function startCountdown() {
     countdownN = 3;
     updatePauseBtn();
     const step = () => {
+        if (document.hidden) { gameState = 'paused'; updatePauseBtn(); return; }
         countdownN--;
         if (countdownN <= 0) {
             gameState = 'running';
@@ -572,6 +597,21 @@ function startCountdown() {
     };
     setTimeout(step, 1000);
 }
+
+// Pause the game and cut audio the moment the tab/app leaves the foreground —
+// AudioContext keeps playing in the background otherwise.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        if (gameState === 'running' || gameState === 'countdown') {
+            gameState = 'paused';
+            stopMusic();
+            updatePauseBtn();
+        }
+        if (audioCtx && audioCtx.state === 'running') audioCtx.suspend();
+    } else if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+});
 
 function updatePauseBtn() {
     const btn = document.getElementById('btn-pause');
@@ -964,11 +1004,13 @@ function init() {
 function resize() {
     const area = document.getElementById('game-area');
     const sb   = document.getElementById('scoreboard');
+    const ph   = document.getElementById('profile-header');
     const hud  = document.getElementById('adv-hud');
     const bar  = document.getElementById('ability-bar');
-    const extraH = (hud && hud.classList.contains('visible') ? hud.offsetHeight : 0)
+    const extraH = (ph ? ph.offsetHeight : 0)
+                 + (hud && hud.classList.contains('visible') ? hud.offsetHeight : 0)
                  + (bar && bar.classList.contains('visible') ? bar.offsetHeight : 0);
-    const size = Math.min(area.clientWidth, area.clientHeight - sb.offsetHeight - extraH - 6, MAX_CANVAS);
+    const size = Math.min(area.clientWidth, area.clientHeight - sb.offsetHeight - extraH - 10, MAX_CANVAS);
     canvas.width = canvas.height = Math.max(size, 0);
 }
 
