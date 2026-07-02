@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.38';
+const VERSION = 'v1.39';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1664,6 +1664,49 @@ function drawTongueFlick(cell) {
     ctx.restore();
 }
 
+// Mouth opens as the snake closes in on food it's heading straight toward —
+// 0 while food isn't dead ahead or is more than MOUTH_OPEN_DIST cells out, 1 when adjacent.
+const MOUTH_OPEN_DIST = 4;
+function mouthOpenAmount() {
+    if (!snake.length) return 0;
+    const head = snake[0];
+    const ddx = dir==='right'?1: dir==='left'?-1:0;
+    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
+    let dist;
+    if (ddx !== 0) { if (food.y !== head.y) return 0; dist = (food.x - head.x) * ddx; }
+    else if (ddy !== 0) { if (food.x !== head.x) return 0; dist = (food.y - head.y) * ddy; }
+    else return 0;
+    if (dist <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - (dist - 1) / (MOUTH_OPEN_DIST - 1)));
+}
+
+function drawMouth(cell) {
+    if (gameState !== 'running') return;
+    const amt = mouthOpenAmount();
+    if (amt <= 0.02) return;
+    const hw = cell / 2;
+    const ddx = dir==='right'?1: dir==='left'?-1:0;
+    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
+    const px  = -ddy, py = ddx;
+    const rLong = cell * 0.70, rShort = cell * 0.44;
+    const hcx = snake[0].x*cell+hw + ddx*cell*0.20;
+    const hcy = snake[0].y*cell+hw + ddy*cell*0.20;
+
+    const tipX  = hcx + ddx*rLong*0.92, tipY  = hcy + ddy*rLong*0.92;
+    const backX = hcx + ddx*rLong*(0.92 - 0.55*amt), backY = hcy + ddy*rLong*(0.92 - 0.55*amt);
+    const halfW = rShort * 0.75 * amt;
+
+    ctx.save();
+    ctx.fillStyle = '#8a2438';
+    ctx.beginPath();
+    ctx.moveTo(backX, backY);
+    ctx.lineTo(tipX + px*halfW, tipY + py*halfW);
+    ctx.quadraticCurveTo(tipX + ddx*rLong*0.08, tipY + ddy*rLong*0.08, tipX - px*halfW, tipY - py*halfW);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
 function drawEyes(head, cell) {
     const hw  = cell / 2;
     const ddx = dir==='right'?1: dir==='left'?-1:0;
@@ -1970,6 +2013,7 @@ function drawSnakeSmooth(cell) {
     ctx.fill();
 
     ctx.restore();
+    drawMouth(cell);
     drawEyes(snake[0], cell);
 
     // Speed lines while lunging
