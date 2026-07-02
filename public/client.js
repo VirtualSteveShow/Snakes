@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.46';
+const VERSION = 'v1.47';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -216,6 +216,10 @@ function drawStone(bctx, x, y, r) {
     bctx.fillStyle = 'rgba(255,255,255,0.35)'; bctx.fill();
 }
 
+// Dirt patch centers/radii in grid-cell units — shared with buildGrassField so blades
+// know to leave dirt bare instead of growing through it.
+let dirtPatches = [];
+
 function buildBackground(cols, rows) {
     const w = cols * BG_UNIT, h = rows * BG_UNIT;
     const c = document.createElement('canvas');
@@ -235,25 +239,26 @@ function buildBackground(cols, rows) {
         bctx.fill();
     }
 
-    // Dirt patches, scattered
-    const patches = [];
+    // Dirt patches, scattered — geometry kept in cell units in dirtPatches so the grass
+    // field (built separately) can test against the same shapes.
+    dirtPatches = [];
     const nPatches = Math.max(3, Math.round((cols * rows) / 32));
     for (let i = 0; i < nPatches; i++) {
-        const cx = Math.random() * w, cy = Math.random() * h;
-        const R = BG_UNIT * (1.1 + Math.random() * 1.6);
-        patches.push({ cx, cy, R });
-        drawDirtPatch(bctx, cx, cy, R);
+        const cx = Math.random() * cols, cy = Math.random() * rows;
+        const R  = 1.1 + Math.random() * 1.6;
+        dirtPatches.push({ cx, cy, R });
+        drawDirtPatch(bctx, cx * BG_UNIT, cy * BG_UNIT, R * BG_UNIT);
     }
 
     // Stones — a light scatter everywhere, plus denser clusters in/around dirt patches
     for (let i = 0; i < cols * rows * 0.3; i++) {
         drawStone(bctx, Math.random() * w, Math.random() * h, 2 + Math.random() * 3.5);
     }
-    for (const p of patches) {
+    for (const p of dirtPatches) {
         const n = 6 + Math.floor(Math.random() * 10);
         for (let i = 0; i < n; i++) {
-            const ang = Math.random() * Math.PI * 2, rad = Math.random() * p.R * 0.95;
-            drawStone(bctx, p.cx + Math.cos(ang) * rad, p.cy + Math.sin(ang) * rad, 2.5 + Math.random() * 4);
+            const ang = Math.random() * Math.PI * 2, rad = Math.random() * p.R * 0.95 * BG_UNIT;
+            drawStone(bctx, p.cx*BG_UNIT + Math.cos(ang) * rad, p.cy*BG_UNIT + Math.sin(ang) * rad, 2.5 + Math.random() * 4);
         }
     }
 
@@ -264,24 +269,32 @@ function buildBackground(cols, rows) {
 // A field of small blades drawn over the procedural background; the snake brushes them
 // aside as it passes, and they spring back over the following frames. Rebuilt whenever
 // CELL_COUNT changes (see startGame()) so density always matches the current grid.
-const GRASS_PER_CELL = 2;
+const GRASS_PER_CELL = 6;
 const GRASS_DECAY     = 0.90;  // per-frame spring-back rate
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass bends a blade
 const GRASS_MAX_BEND  = 0.95;
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 let grassActive = [];   // blades currently mid-spring-back — only these need per-frame work
 
+function onDirt(x, y) {
+    for (const p of dirtPatches) {
+        if (Math.hypot(x - p.cx, y - p.cy) < p.R * 0.88) return true;
+    }
+    return false;
+}
+
 function buildGrassField(cols, rows) {
     const blades = [];
     for (let cy = 0; cy < rows; cy++) {
         for (let cx = 0; cx < cols; cx++) {
             for (let k = 0; k < GRASS_PER_CELL; k++) {
+                const ox = 0.1 + Math.random() * 0.8;
+                const oy = 0.15 + Math.random() * 0.75;
+                if (onDirt(cx + ox, cy + oy)) continue;
                 blades.push({
-                    cx, cy,
-                    ox: 0.15 + Math.random() * 0.7,
-                    oy: 0.20 + Math.random() * 0.65,
+                    cx, cy, ox, oy,
                     tilt: (Math.random() - 0.5) * 0.35,
-                    len:  0.30 + Math.random() * 0.18,
+                    len:  0.28 + Math.random() * 0.17,
                     tone: Math.random(),
                     bx: 0, by: 0,
                 });
@@ -1653,7 +1666,11 @@ function loop(now) {
         if (lungeQueue > 0) {
             if (now - lastTick >= 35) {
                 lastTick = now; curEffMs = 35; tick(); lungeQueue--;
-                if (lungeQueue === 0) { lungePauseUntil = now + 350; lastTick = lungePauseUntil; }
+                // Don't also shove lastTick into the future here — that skipped the final
+                // lunge step's interpolation entirely (an instant snap-to-place "glitch"
+                // right as the lunge finished). now >= lungePauseUntil below still enforces
+                // the post-lunge breather on its own.
+                if (lungeQueue === 0) { lungePauseUntil = now + 350; }
             }
         } else {
             let effMs = tickMs;
