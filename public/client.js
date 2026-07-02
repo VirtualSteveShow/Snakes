@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.39';
+const VERSION = 'v1.40';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -171,7 +171,7 @@ let flyBuzzGain   = null;
 
 const FOOD_TYPES = ['apple', 'strawberry', 'watermelon', 'cherry', 'grape'];
 let foodType = 'apple';
-const DEBRIS_COLORS = ['#c8a050','#d4b860','#e8d090','#a06828','#b8cc44','#e0f060'];
+const DEBRIS_COLORS = ['#c8a050','#d4b860','#e8d090','#a06828','#b89848','#8a6828'];
 const DEBRIS_ANGLE  = { right: Math.PI, left: 0, up: Math.PI/2, down: -Math.PI/2 };
 
 // ── Advanced mode state ───────────────────────────────────────
@@ -1692,9 +1692,9 @@ function drawMouth(cell) {
     const hcx = snake[0].x*cell+hw + ddx*cell*0.20;
     const hcy = snake[0].y*cell+hw + ddy*cell*0.20;
 
-    const tipX  = hcx + ddx*rLong*0.92, tipY  = hcy + ddy*rLong*0.92;
-    const backX = hcx + ddx*rLong*(0.92 - 0.55*amt), backY = hcy + ddy*rLong*(0.92 - 0.55*amt);
-    const halfW = rShort * 0.75 * amt;
+    const tipX  = hcx + ddx*rLong*0.98, tipY  = hcy + ddy*rLong*0.98;
+    const backX = hcx + ddx*rLong*(0.98 - 0.95*amt), backY = hcy + ddy*rLong*(0.98 - 0.95*amt);
+    const halfW = rShort * 1.15 * amt;
 
     ctx.save();
     ctx.fillStyle = '#8a2438';
