@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.43';
+const VERSION = 'v1.44';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1467,17 +1467,18 @@ function loop(now) {
     requestAnimationFrame(loop);
     if (gameState === 'running' && !shopOpen) {
         if (lungeQueue > 0) {
-            curEffMs = 35;
             if (now - lastTick >= 35) {
-                lastTick = now; tick(); lungeQueue--;
+                lastTick = now; curEffMs = 35; tick(); lungeQueue--;
                 if (lungeQueue === 0) { lungePauseUntil = now + 350; lastTick = lungePauseUntil; }
             }
         } else {
             let effMs = tickMs;
             if (holdBoost) effMs = Math.max(MIN_MS * 0.55, tickMs * 0.45);
             else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;
-            curEffMs = effMs;
-            if (now - lastTick >= effMs && now >= lungePauseUntil) { lastTick = now; tick(); }
+            // curEffMs (used for render interpolation) only latches when a tick actually
+            // fires — recomputing it every frame let holdBoost/slowtime toggling mid-slide
+            // retroactively shrink the interval and made the snake visibly jump forward.
+            if (now - lastTick >= effMs && now >= lungePauseUntil) { lastTick = now; curEffMs = effMs; tick(); }
         }
     }
     updateRenderSnake(now);
