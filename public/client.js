@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.52';
+const VERSION = 'v1.53';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -296,8 +296,10 @@ function buildGrassField(cols, rows) {
     for (let cy = 0; cy < rows; cy++) {
         for (let cx = 0; cx < cols; cx++) {
             for (let k = 0; k < GRASS_PER_CELL; k++) {
-                const ox = 0.1 + Math.random() * 0.8;
-                const oy = 0.15 + Math.random() * 0.75;
+                // Full 0-1 range, not a margin inset — an inset left a systematic gap at
+                // every cell boundary, which read as a visible grid across the whole field.
+                const ox = Math.random();
+                const oy = Math.random();
                 if (onDirt(cx + ox, cy + oy)) continue;
                 blades.push({
                     cx, cy, ox, oy,
