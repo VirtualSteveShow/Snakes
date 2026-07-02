@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.48';
+const VERSION = 'v1.49';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -275,15 +275,14 @@ function buildBackground(cols, rows) {
 }
 
 // ── Interactive grass ────────────────────────────────────────
-// A field of small blades drawn over the procedural background; the snake brushes them
-// aside as it passes, and they spring back over the following frames. Rebuilt whenever
-// CELL_COUNT changes (see startGame()) so density always matches the current grid.
+// A field of small blades drawn over the procedural background; the snake lays them flat
+// along its direction of travel as it passes, and they stay laid over — permanently —
+// until the snake passes through that exact cell again (from whatever direction it's
+// heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
+// always matches the current grid.
 const GRASS_PER_CELL = 24;
-const GRASS_DECAY     = 0.90;  // per-frame spring-back rate
-const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass bends a blade
-const GRASS_MAX_BEND  = 0.95;
+const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
-let grassActive = [];   // blades currently mid-spring-back — only these need per-frame work
 
 function onDirt(x, y) {
     for (const p of dirtPatches) {
@@ -317,7 +316,6 @@ function buildGrassField(cols, rows) {
         byCell.get(key).push(b);
     }
     grassField = { cols, rows, blades, byCell };
-    grassActive = [];
 }
 
 function bendGrassAt(cx, cy, dirx, diry) {
@@ -325,22 +323,8 @@ function bendGrassAt(cx, cy, dirx, diry) {
     const list = grassField.byCell.get(cy * grassField.cols + cx);
     if (!list) return;
     for (const b of list) {
-        b.bx += dirx * GRASS_PUSH;
-        b.by += diry * GRASS_PUSH;
-        const mag = Math.hypot(b.bx, b.by);
-        if (mag > GRASS_MAX_BEND) { b.bx = b.bx / mag * GRASS_MAX_BEND; b.by = b.by / mag * GRASS_MAX_BEND; }
-        if (!grassActive.includes(b)) grassActive.push(b);
-    }
-}
-
-function updateGrass() {
-    for (let i = grassActive.length - 1; i >= 0; i--) {
-        const b = grassActive[i];
-        b.bx *= GRASS_DECAY; b.by *= GRASS_DECAY;
-        if (Math.abs(b.bx) < 0.004 && Math.abs(b.by) < 0.004) {
-            b.bx = 0; b.by = 0;
-            grassActive.splice(i, 1);
-        }
+        b.bx = dirx * GRASS_PUSH;
+        b.by = diry * GRASS_PUSH;
     }
 }
 
@@ -1729,7 +1713,6 @@ function loop(now) {
         }
     }
     updateRenderSnake(now);
-    updateGrass();
     // Snake slide-in intro
     if (gameState === 'entering') {
         const t = Math.min(1, (now - enterStart) / ENTER_DUR);
