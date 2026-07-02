@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.59';
+const VERSION = 'v1.60';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -383,7 +383,7 @@ function bendGrassAt(cx, cy, dirx, diry) {
 // recent motion, not total field size. Once a blade settles, its tile gets rebaked so it
 // stops needing a live redraw every frame.
 function updateGrassTransitions() {
-    const settledTiles = new Set();
+    const touchedTiles = new Set();
     for (let i = grassTransitioning.length - 1; i >= 0; i--) {
         const b = grassTransitioning[i];
         b.bx += (b.tbx - b.bx) * GRASS_EASE;
@@ -391,10 +391,18 @@ function updateGrassTransitions() {
         if (Math.abs(b.tbx - b.bx) < 0.004 && Math.abs(b.tby - b.by) < 0.004) {
             b.bx = b.tbx; b.by = b.tby;
             grassTransitioning.splice(i, 1);
-            settledTiles.add(tileKeyFor(b.cx, b.cy));
+            touchedTiles.add(tileKeyFor(b.cx, b.cy));
         }
     }
-    for (const key of settledTiles) rebuildGrassTile(key);
+    for (const key of touchedTiles) {
+        // Rebuilding while a sibling blade in the same tile is still mid-transition would
+        // bake its current, still-moving position into the cache — it'd then be drawn
+        // twice (once frozen in the tile, once live from grassTransitioning) until it
+        // finally settles, leaving a permanent ghost/duplicate behind in that tile. Wait
+        // for every blade in the tile to actually finish before baking it.
+        const stillPending = grassTransitioning.some(b => tileKeyFor(b.cx, b.cy) === key);
+        if (!stillPending) rebuildGrassTile(key);
+    }
 }
 
 function tileKeyFor(cx, cy) {
