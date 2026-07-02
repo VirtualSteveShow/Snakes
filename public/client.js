@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.57';
+const VERSION = 'v1.58';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -312,7 +312,7 @@ const GRASS_VARIANTS = [
 // phase/amplitude plus a spatial term so the sway reads as a wave passing across the
 // field rather than every blade twitching in lockstep. Fades out as a blade's snake-bend
 // takes over instead of fighting it.
-const GRASS_WIND_PERCENT = 0.14;
+const GRASS_WIND_PERCENT = 0.17;
 const GRASS_WIND_SPEED   = 1.4;   // radians/sec
 const GRASS_WIND_SPATIAL = 0.35;  // spatial frequency of the wave, per cell
 const GRASS_WIND_DIR     = (() => { const m = Math.hypot(0.6, 0.35); return { x: 0.6/m, y: 0.35/m }; })();
@@ -344,7 +344,7 @@ function buildGrassField(cols, rows) {
                     tbx: 0, tby: 0,   // target bend set by bendGrassAt
                     hasWind,
                     windPhase: hasWind ? Math.random() * Math.PI * 2 : 0,
-                    windAmp:   hasWind ? 0.06 + Math.random() * 0.09 : 0,
+                    windAmp:   hasWind ? 0.11 + Math.random() * 0.15 : 0,
                 });
             }
         }
@@ -421,6 +421,20 @@ function markGrassTileDirty(cx, cy) {
     if (canvas) canvas.dirty = true; // wiped and skipped next draw until it's rebuilt
 }
 
+// Tile pixel bounds computed the same way for every caller (canvas sizing, content
+// offset, and draw position all use this) — a tile's right/bottom edge is always exactly
+// the next tile's left/top edge (both Math.round of the same expression), so there's no
+// sub-pixel gap or overlap between adjacent cached tiles. Sizing width/height off an
+// independent Math.ceil() while drawImage used the unrounded position was exactly that
+// mismatch, and it's what showed up as visible seams once real tiles started rebuilding.
+function tileBounds(tx, ty, cell) {
+    const x0 = Math.round(tx * GRASS_TILE_CELLS * cell);
+    const y0 = Math.round(ty * GRASS_TILE_CELLS * cell);
+    const x1 = Math.round((tx + 1) * GRASS_TILE_CELLS * cell);
+    const y1 = Math.round((ty + 1) * GRASS_TILE_CELLS * cell);
+    return { x0, y0, w: x1 - x0, h: y1 - y0 };
+}
+
 function buildGrassTiles(cell) {
     const cols = Math.ceil(grassField.cols / GRASS_TILE_CELLS);
     const rows = Math.ceil(grassField.rows / GRASS_TILE_CELLS);
@@ -437,14 +451,14 @@ function buildGrassTiles(cell) {
 function rebuildGrassTile(key) {
     const tx = key % grassTiles.cols, ty = Math.floor(key / grassTiles.cols);
     const cell = grassTiles.cell;
-    const w = Math.ceil(GRASS_TILE_CELLS * cell), h = Math.ceil(GRASS_TILE_CELLS * cell);
+    const { x0, y0, w, h } = tileBounds(tx, ty, cell);
     let canvas = grassTiles.canvases.get(key);
     if (!canvas) { canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; grassTiles.canvases.set(key, canvas); }
     else if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     const tctx = canvas.getContext('2d');
     tctx.clearRect(0, 0, w, h);
     tctx.save();
-    tctx.translate(-tx * GRASS_TILE_CELLS * cell, -ty * GRASS_TILE_CELLS * cell);
+    tctx.translate(-x0, -y0);
     const blades = [];
     const cy0 = ty * GRASS_TILE_CELLS, cy1 = Math.min(cy0 + GRASS_TILE_CELLS, grassField.rows);
     const cx0 = tx * GRASS_TILE_CELLS, cx1 = Math.min(cx0 + GRASS_TILE_CELLS, grassField.cols);
@@ -510,7 +524,8 @@ function drawGrassField(cell) {
     for (const [key, canvas] of grassTiles.canvases) {
         if (canvas.dirty) continue; // mid-squish in this tile — covered by the live pass below
         const tx = key % grassTiles.cols, ty = Math.floor(key / grassTiles.cols);
-        ctx.drawImage(canvas, tx * GRASS_TILE_CELLS * cell, ty * GRASS_TILE_CELLS * cell);
+        const { x0, y0 } = tileBounds(tx, ty, cell);
+        ctx.drawImage(canvas, x0, y0);
     }
 
     // Live overlay: wind blades (small, fixed subset) + anything still easing into place,
