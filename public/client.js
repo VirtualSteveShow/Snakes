@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.42';
+const VERSION = 'v1.43';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1158,8 +1158,13 @@ function tick() {
     dir = nextDir;
     const nx = snake[0].x + (dir==='right'?1: dir==='left'?-1:0);
     const ny = snake[0].y + (dir==='down' ?1: dir==='up'  ?-1:0);
-    if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) { die(); return; }
-    if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die(); return; }
+    if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) {
+        const ix = snake[0].x*cell + cell/2 + (dir==='right'?cell/2: dir==='left'?-cell/2:0);
+        const iy = snake[0].y*cell + cell/2 + (dir==='down' ?cell/2: dir==='up'  ?-cell/2:0);
+        die('wall', ix, iy);
+        return;
+    }
+    if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die('self'); return; }
 
     // Digesting food travels toward the tail as a physical piece of the body — every tick
     // shifts each body identity back one array slot (a new head gets prepended), so bump
@@ -1218,7 +1223,23 @@ function tick() {
     }
 }
 
-function die() {
+function spawnWallImpact(x, y) {
+    const n = 16;
+    const colors = ['#ffe066', '#ff8844', '#ff5544', '#ffffff'];
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.5;
+        const speed = 1.8 + Math.random() * 3.2;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1.5,
+            life: 1, decay: 0.028 + Math.random() * 0.02,
+            size: 3 + Math.random() * 4.5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+        });
+    }
+}
+
+function die(reason = 'self', ix, iy) {
     lungeQueue = 0; holdBoost = false;
     gameState = 'over'; deathTime = performance.now();
     if (score > highScore) { highScore = score; updateScoreDisplay(); }
@@ -1227,6 +1248,8 @@ function die() {
     fly = null; flyRegion = null; flyEntering = false; stopFlyBuzz();
     document.getElementById('shop-overlay').classList.add('hidden');
     if (gameMode === 'advanced') updateAbilityBar();
+    if (reason === 'wall') { shakeMag = 9; spawnWallImpact(ix, iy); }
+    else { shakeMag = 5; }
     stopMusic(); playGameOver(); vibrate([60,30,120]); updatePauseBtn();
 }
 
