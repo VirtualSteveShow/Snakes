@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.44';
+const VERSION = 'v1.45';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -174,6 +174,88 @@ function updateRenderSnake(now) {
 const bgImg = new Image();
 bgImg.src = 'images/bg_grass.png';
 let particles = [], scorePops = [], shakeMag = 0;
+
+// ── Interactive grass ────────────────────────────────────────
+// A field of small blades drawn over bgImg; the snake brushes them aside as it passes,
+// and they spring back over the following frames. Rebuilt whenever CELL_COUNT changes
+// (see startGame()) so density always matches the current grid.
+const GRASS_PER_CELL = 2;
+const GRASS_DECAY     = 0.90;  // per-frame spring-back rate
+const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass bends a blade
+const GRASS_MAX_BEND  = 0.95;
+let grassField  = null; // { cols, rows, blades, byCell: Map }
+let grassActive = [];   // blades currently mid-spring-back — only these need per-frame work
+
+function buildGrassField(cols, rows) {
+    const blades = [];
+    for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+            for (let k = 0; k < GRASS_PER_CELL; k++) {
+                blades.push({
+                    cx, cy,
+                    ox: 0.15 + Math.random() * 0.7,
+                    oy: 0.20 + Math.random() * 0.65,
+                    tilt: (Math.random() - 0.5) * 0.35,
+                    len:  0.30 + Math.random() * 0.18,
+                    tone: Math.random(),
+                    bx: 0, by: 0,
+                });
+            }
+        }
+    }
+    const byCell = new Map();
+    for (const b of blades) {
+        const key = b.cy * cols + b.cx;
+        if (!byCell.has(key)) byCell.set(key, []);
+        byCell.get(key).push(b);
+    }
+    grassField = { cols, rows, blades, byCell };
+    grassActive = [];
+}
+
+function bendGrassAt(cx, cy, dirx, diry) {
+    if (!grassField) return;
+    const list = grassField.byCell.get(cy * grassField.cols + cx);
+    if (!list) return;
+    for (const b of list) {
+        b.bx += dirx * GRASS_PUSH;
+        b.by += diry * GRASS_PUSH;
+        const mag = Math.hypot(b.bx, b.by);
+        if (mag > GRASS_MAX_BEND) { b.bx = b.bx / mag * GRASS_MAX_BEND; b.by = b.by / mag * GRASS_MAX_BEND; }
+        if (!grassActive.includes(b)) grassActive.push(b);
+    }
+}
+
+function updateGrass() {
+    for (let i = grassActive.length - 1; i >= 0; i--) {
+        const b = grassActive[i];
+        b.bx *= GRASS_DECAY; b.by *= GRASS_DECAY;
+        if (Math.abs(b.bx) < 0.004 && Math.abs(b.by) < 0.004) {
+            b.bx = 0; b.by = 0;
+            grassActive.splice(i, 1);
+        }
+    }
+}
+
+function drawGrassField(cell) {
+    if (!grassField) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const b of grassField.blades) {
+        const baseX = (b.cx + b.ox) * cell;
+        const baseY = (b.cy + b.oy) * cell;
+        const len   = b.len * cell;
+        const tipX  = baseX + b.tilt * len + b.bx * cell;
+        const tipY  = baseY - len + b.by * cell;
+        ctx.strokeStyle = b.tone < 0.5 ? 'rgba(35,110,25,0.5)' : 'rgba(75,160,55,0.45)';
+        ctx.lineWidth = Math.max(1, cell * 0.032);
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY);
+        ctx.quadraticCurveTo(baseX + b.bx*cell*0.6, baseY - len*0.55, tipX, tipY);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
 let handedness      = localStorage.getItem('snake_hand') || 'right';
 let lungePauseUntil = 0;
 let lungeQueue      = 0;
@@ -1050,15 +1132,22 @@ function onKey(e) {
     }
 }
 
+const HOLD_BOOST_DELAY = 130; // ms — a quick tap/swipe shouldn't trigger a burst of sprint speed
+let holdBoostTimer = null;
+
 function setupTouch() {
     let sx = 0, sy = 0;
     document.addEventListener('touchstart', e => {
         if (e.target.closest('button') || e.target.closest('input')) return;
         sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-        if (gameState === 'running') holdBoost = true;
+        if (gameState === 'running') {
+            clearTimeout(holdBoostTimer);
+            holdBoostTimer = setTimeout(() => { holdBoost = true; }, HOLD_BOOST_DELAY);
+        }
     }, { passive: true });
-    document.addEventListener('touchcancel', () => { holdBoost = false; }, { passive: true });
+    document.addEventListener('touchcancel', () => { clearTimeout(holdBoostTimer); holdBoost = false; }, { passive: true });
     document.addEventListener('touchend', e => {
+        clearTimeout(holdBoostTimer);
         holdBoost = false;
         if (e.target.closest('button') || e.target.closest('input')) return;
         if (optionsOpen) { toggleOptions(); return; }
@@ -1113,6 +1202,9 @@ function startGame() {
     stopGameOver(0.3);
     const cfg = DIFFICULTIES[difficulty];
     CELL_COUNT = cfg.cells; BASE_MS = cfg.baseMs; MIN_MS = cfg.minMs; SPEED_STEP = cfg.speedStep;
+    if (!grassField || grassField.cols !== CELL_COUNT || grassField.rows !== CELL_COUNT) {
+        buildGrassField(CELL_COUNT, CELL_COUNT);
+    }
     const mid = Math.floor(CELL_COUNT / 2);
     snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }, { x:mid-4, y:mid }];
     prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
@@ -1165,6 +1257,12 @@ function tick() {
         return;
     }
     if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die('self'); return; }
+
+    {
+        const gdx = dir==='right'?1: dir==='left'?-1:0;
+        const gdy = dir==='down' ?1: dir==='up'  ?-1:0;
+        bendGrassAt(nx, ny, gdx, gdy);
+    }
 
     // Digesting food travels toward the tail as a physical piece of the body — every tick
     // shifts each body identity back one array slot (a new head gets prepended), so bump
@@ -1482,6 +1580,7 @@ function loop(now) {
         }
     }
     updateRenderSnake(now);
+    updateGrass();
     // Snake slide-in intro
     if (gameState === 'entering') {
         const t = Math.min(1, (now - enterStart) / ENTER_DUR);
@@ -1514,6 +1613,7 @@ function draw() {
     } else {
         ctx.fillStyle = '#111'; ctx.fillRect(0,0,size,size);
     }
+    drawGrassField(cell);
 
     // Grid
     ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 0.5;
