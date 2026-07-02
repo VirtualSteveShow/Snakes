@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.50';
+const VERSION = 'v1.51';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -357,10 +357,27 @@ function drawGrassField(cell) {
             const baseX = (b.cx + b.ox) * cell;
             const baseY = (b.cy + b.oy) * cell;
             const len   = b.len * cell;
-            const tipX  = baseX + b.tilt * len + b.bx * cell;
-            const tipY  = baseY - len + b.by * cell;
+
+            // Blend direction from upright (plus a little natural tilt) toward the bend
+            // direction as bend magnitude grows, rather than adding the bend offset on
+            // top of the upright tip — that stretched bent blades noticeably longer than
+            // unbent ones instead of just leaning them over at a constant length.
+            const bendMag = Math.hypot(b.bx, b.by);
+            const lean = Math.min(1, bendMag / GRASS_PUSH);
+            let dx = b.tilt * (1 - lean) + (bendMag > 1e-6 ? (b.bx / bendMag) * lean : 0);
+            let dy = -1 * (1 - lean)     + (bendMag > 1e-6 ? (b.by / bendMag) * lean : 0);
+            const dmag = Math.hypot(dx, dy) || 1;
+            dx /= dmag; dy /= dmag;
+
+            const tipX = baseX + dx * len;
+            const tipY = baseY + dy * len;
+            const perpX = -dy, perpY = dx;
+            const bulge = len * 0.18;
+            const midX = baseX + dx * len * 0.5 + perpX * bulge;
+            const midY = baseY + dy * len * 0.5 + perpY * bulge;
+
             ctx.moveTo(baseX, baseY);
-            ctx.quadraticCurveTo(baseX + b.bx*cell*0.6, baseY - len*0.55, tipX, tipY);
+            ctx.quadraticCurveTo(midX, midY, tipX, tipY);
         }
         ctx.strokeStyle = tone === 0 ? 'rgba(35,110,25,0.5)' : 'rgba(75,160,55,0.45)';
         ctx.stroke();
