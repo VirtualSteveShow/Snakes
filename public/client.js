@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.37';
+const VERSION = 'v1.38';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1880,23 +1880,12 @@ function drawSnakeSmooth(cell) {
     const hcx = snake[0].x*cell+hw + ddx*headOffset;
     const hcy = snake[0].y*cell+hw + ddy*headOffset;
 
-    // Tail taper spans the last TAIL_TAPER segments (not just the final one) so the body
-    // narrows gradually into the tip instead of staying full-width until an abrupt point.
-    const TAIL_TAPER = Math.min(3, snake.length - 2);
-    const bodyEnd = snake.length - 1 - TAIL_TAPER; // last index still drawn at constant width
-    const TAIL_END_RATIO = 0.30; // half-width ratio at the tip anchor, before the rounded cap
-    // local half body width at snake-array index i — constant until bodyEnd, then eased down
-    function bodyHalfWidthAt(i) {
-        if (TAIL_TAPER <= 0 || i <= bodyEnd) return bodyW / 2;
-        const t = (i - bodyEnd) / TAIL_TAPER;
-        return (bodyW / 2) * (1 - (1 - TAIL_END_RATIO) * t * t);
-    }
-
+    // Body is constant width the whole way — the tail just ends in the stroke's own round
+    // cap (lineCap: 'round' below), same as classic Snake's rounded tail end. No taper.
     function path() {
         ctx.beginPath();
         ctx.moveTo(snake[0].x*cell+hw, snake[0].y*cell+hw);
-        // stop before the taper zone — tail drawn separately as a gradual taper
-        for (let i = 1; i <= bodyEnd; i++)
+        for (let i = 1; i < snake.length; i++)
             ctx.lineTo(snake[i].x*cell+hw, snake[i].y*cell+hw);
     }
 
@@ -1923,10 +1912,9 @@ function drawSnakeSmooth(cell) {
     ctx.lineWidth = bodyW;
     ctx.stroke();
 
-    // Scales — quadratic bezier arcs across body, bowing toward tail. Runs the full body
-    // including the taper zone (with locally narrowed span), not just the constant-width part —
-    // otherwise short snakes (mostly taper) end up with no scales at all.
+    // Scales — quadratic bezier arcs across body, bowing toward tail.
     {
+        const halfH  = bodyW * 0.34; // half-span across body
         const bowAmt = cell * 0.12;  // how far the curve bows toward tail
         ctx.save();
         ctx.strokeStyle = 'rgba(10, 55, 10, 0.30)';
@@ -1938,7 +1926,6 @@ function drawSnakeSmooth(cell) {
             const x1  = snake[i + 1].x * cell + hw, y1  = snake[i + 1].y * cell + hw;
             const tdx = (x1 - x0) / cell, tdy = (y1 - y0) / cell; // unit toward tail
             const pax = -tdy, pay = tdx;                            // unit perpendicular
-            const halfH = (bodyHalfWidthAt(i) + bodyHalfWidthAt(i + 1)) / 2 * 0.68;
             const fracs = i === 0       ? [0.46, 0.73]
                         : i === last-1  ? [0.22, 0.52]
                         :                 [0.22, 0.64];
@@ -1961,52 +1948,6 @@ function drawSnakeSmooth(cell) {
     ctx.strokeStyle = 'rgba(140,255,100,0.22)';
     ctx.lineWidth = bodyW * 0.36;
     ctx.stroke();
-
-    // Tail — gradual multi-segment taper (real snakes narrow slowly over several body
-    // lengths, not in one abrupt step) from full width at snake[bodyEnd] down to a small
-    // rounded tip at snake[n-1].
-    if (TAIL_TAPER > 0) {
-        const n = snake.length;
-        const pts = [];
-        for (let i = bodyEnd; i <= n - 1; i++) pts.push({ x: snake[i].x*cell+hw, y: snake[i].y*cell+hw });
-        const T = pts.length - 1;
-
-        // eased half-width per anchor — stays close to full width, then narrows faster near the tip
-        const halfWidths = pts.map((_, i) => bodyHalfWidthAt(bodyEnd + i));
-        // local perpendicular at each anchor, based on direction to the next anchor
-        const perps = pts.map((_, i) => {
-            const from = pts[Math.min(i, T - 1)], to = pts[Math.min(i + 1, T)];
-            const sdx = to.x - from.x, sdy = to.y - from.y;
-            const len = Math.hypot(sdx, sdy) || 1;
-            return { x: -sdy / len, y: sdx / len };
-        });
-
-        const lastDx = pts[T].x - pts[T-1].x, lastDy = pts[T].y - pts[T-1].y;
-        const lastLen = Math.hypot(lastDx, lastDy) || 1;
-        const dxu = lastDx / lastLen, dyu = lastDy / lastLen;
-        const tipR = halfWidths[T];
-        const tipCx = pts[T].x + dxu*cell*0.22, tipCy = pts[T].y + dyu*cell*0.22;
-        const tipAngle = Math.atan2(dyu, dxu);
-
-        // offset edge points, smoothed through quadratic curves so a turn mid-taper doesn't
-        // kink into a sharp elbow — each interior point becomes a curve control, not a corner
-        const L = pts.map((p, i) => ({ x: p.x + perps[i].x*halfWidths[i], y: p.y + perps[i].y*halfWidths[i] }));
-        const R = pts.map((p, i) => ({ x: p.x - perps[i].x*halfWidths[i], y: p.y - perps[i].y*halfWidths[i] }));
-
-        ctx.beginPath();
-        ctx.moveTo(L[0].x, L[0].y);
-        for (let i = 1; i < T; i++)
-            ctx.quadraticCurveTo(L[i].x, L[i].y, (L[i].x+L[i+1].x)/2, (L[i].y+L[i+1].y)/2);
-        ctx.lineTo(L[T].x, L[T].y);
-        ctx.arc(tipCx, tipCy, tipR, tipAngle + Math.PI/2, tipAngle - Math.PI/2, true);
-        ctx.lineTo(R[T].x, R[T].y);
-        for (let i = T - 1; i >= 1; i--)
-            ctx.quadraticCurveTo(R[i].x, R[i].y, (R[i].x+R[i-1].x)/2, (R[i].y+R[i-1].y)/2);
-        ctx.lineTo(R[0].x, R[0].y);
-        ctx.closePath();
-        ctx.fillStyle = '#278a27';
-        ctx.fill();
-    }
 
     // Head — elongated ellipse in direction of travel
     ctx.fillStyle = '#339933';
