@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.41';
+const VERSION = 'v1.42';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -150,6 +150,10 @@ let optionsOpen = false;
 let prevSnake   = [];
 let curEffMs    = BASE_MS; // interval currently governing tick pacing (set each frame in loop())
 let renderSnake = [];      // interpolated snake used by all render code; rebuilt once per draw()
+
+// Food swallowed at the head travels toward the tail as a shrinking bulge, then disappears.
+// { segIndex } — index into snake/renderSnake this bolus currently occupies.
+let digestingFood = [];
 
 function updateRenderSnake(now) {
     if (gameState !== 'running' || shopOpen || !snake.length || now < lastTick) {
@@ -1113,6 +1117,7 @@ function startGame() {
     snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }, { x:mid-4, y:mid }];
     prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
     renderSnake = snake;
+    digestingFood = [];
     dir       = 'right'; nextDir = 'right';
     score     = 0; tickMs = BASE_MS; deathTime = 0; foodPulse = 0;
     lungeQueue = 0; lungePauseUntil = 0; tongueFlickBorn = -Infinity;
@@ -1156,6 +1161,11 @@ function tick() {
     if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) { die(); return; }
     if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die(); return; }
 
+    // Digesting food travels toward the tail as a physical piece of the body — every tick
+    // shifts each body identity back one array slot (a new head gets prepended), so bump
+    // segIndex here, before that shift happens, then add this tick's own swallow at 0 below.
+    for (const b of digestingFood) b.segIndex++;
+
     if (gameMode === 'advanced') {
         const ci = coins.findIndex(c => c.x===nx && c.y===ny);
         if (ci !== -1) { coins.splice(ci, 1); playerCoins++; updateAdvancedHUD(); sfxCoin(); vibrate(10); }
@@ -1192,6 +1202,7 @@ function tick() {
         shakeMag = 3;
         tongueFlickBorn = performance.now();
         scorePops.push({ x: eatX, y: eatY, born: performance.now() });
+        digestingFood.push({ segIndex: 0 });
         if (gameMode === 'advanced') {
             foodForShop++;
             if (foodForShop >= 10) { foodForShop = 0; spawnShopBlock(); }
@@ -1199,6 +1210,7 @@ function tick() {
         }
         if (!fly && Math.random() < FLY_SPAWN_CHANCE) spawnFly();
     } else if (!flyEaten) { snake.pop(); }
+    digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
 
     if (gameMode === 'advanced' && babySnake.length > 0) {
         if (performance.now() < babyUntil) tickBabySnake();
@@ -1937,6 +1949,27 @@ function setHandedness(h) {
     if (sz) sz.className = cls;
 }
 
+// Swallowed food renders as a shrinking bulge riding along renderSnake toward the tail —
+// big and round right behind the head, faded to almost nothing by the time it reaches the end.
+function drawDigestion(cell, bodyW) {
+    if (!digestingFood.length || !renderSnake.length) return;
+    const hw = cell / 2;
+    const span = Math.max(1, renderSnake.length - 1);
+    ctx.save();
+    for (const b of digestingFood) {
+        if (b.segIndex < 0 || b.segIndex >= renderSnake.length) continue;
+        const seg  = renderSnake[b.segIndex];
+        const frac = 1 - b.segIndex / span; // 1 near the head, 0 near the tail
+        const r    = bodyW / 2 * (0.12 + 0.78 * frac);
+        ctx.globalAlpha = 0.55 + 0.35 * frac;
+        ctx.fillStyle = '#e0453f';
+        ctx.beginPath();
+        ctx.ellipse(seg.x*cell+hw, seg.y*cell+hw, r, r * 0.88, 0, 0, Math.PI*2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
 function drawSnakeSmooth(cell) {
     if (!renderSnake.length) return;
     const rs    = renderSnake;
@@ -1982,6 +2015,8 @@ function drawSnakeSmooth(cell) {
     ctx.strokeStyle = '#278a27';
     ctx.lineWidth = bodyW;
     ctx.stroke();
+
+    drawDigestion(cell, bodyW);
 
     // Scales — quadratic bezier arcs across body, bowing toward tail.
     {
