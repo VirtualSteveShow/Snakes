@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.33';
+const VERSION = 'v1.34';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1002,6 +1002,11 @@ function resize() {
 }
 
 // ── Controls ──────────────────────────────────────────────────
+const GAMEOVER_INPUT_LOCK_MS = 1000; // ignore restart input right after death so it can't be swiped away instantly
+function gameOverLocked() {
+    return gameState === 'over' && performance.now() - deathTime < GAMEOVER_INPUT_LOCK_MS;
+}
+
 function onKey(e) {
     switch (e.key) {
         case 'ArrowUp':    setDir('up');    e.preventDefault(); break;
@@ -1014,6 +1019,7 @@ function onKey(e) {
             if (optionsOpen) { toggleOptions(); e.preventDefault(); break; }
             if (gameState === 'entering' || gameState === 'countdown') { e.preventDefault(); break; }
             if (gameState === 'running' || gameState === 'paused') { togglePause(); e.preventDefault(); break; }
+            if (gameOverLocked()) { e.preventDefault(); break; }
             ensureAudio(); startGame(); e.preventDefault();
             break;
     }
@@ -1031,6 +1037,7 @@ function setupTouch() {
         holdBoost = false;
         if (e.target.closest('button') || e.target.closest('input')) return;
         if (optionsOpen) { toggleOptions(); return; }
+        if (gameOverLocked()) return;
         const dx = e.changedTouches[0].clientX - sx;
         const dy = e.changedTouches[0].clientY - sy;
         const dist = Math.hypot(dx, dy);
@@ -1941,7 +1948,7 @@ function drawSnakeSmooth(cell) {
     ctx.lineWidth = bodyW * 0.36;
     ctx.stroke();
 
-    // Tail — 2-segment taper: full width at snake[n-2], half at snake[n-1], point beyond
+    // Tail — 2-segment taper: full width at snake[n-2], narrowed at snake[n-1], rounded cap beyond
     if (snake.length >= 2) {
         const n  = snake.length;
         const a  = snake[n-2], b = snake[n-1];
@@ -1949,14 +1956,15 @@ function drawSnakeSmooth(cell) {
         const px = -dy,      py = dx;              // perpendicular unit vec
         const ax = a.x*cell+hw, ay = a.y*cell+hw;
         const bx = b.x*cell+hw, by = b.y*cell+hw;
-        const tip = { x: bx + dx*cell*0.95, y: by + dy*cell*0.95 };
         const hw0 = bodyW / 2;          // full half-width at a
         const hw1 = bodyW / 2 * 0.45;  // narrowed half-width at b
+        const tipR = hw1;                          // rounded cap radius
+        const tipCx = bx + dx*cell*0.28, tipCy = by + dy*cell*0.28;
+        const tipAngle = Math.atan2(dy, dx);
         ctx.beginPath();
         ctx.moveTo(ax + px*hw0, ay + py*hw0);
         ctx.lineTo(bx + px*hw1, by + py*hw1);
-        ctx.lineTo(tip.x, tip.y);
-        ctx.lineTo(bx - px*hw1, by - py*hw1);
+        ctx.arc(tipCx, tipCy, tipR, tipAngle + Math.PI/2, tipAngle - Math.PI/2, true);
         ctx.lineTo(ax - px*hw0, ay - py*hw0);
         ctx.closePath();
         ctx.fillStyle = '#278a27';
