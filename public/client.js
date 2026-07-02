@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.34';
+const VERSION = 'v1.35';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1089,7 +1089,7 @@ function startGame() {
     const cfg = DIFFICULTIES[difficulty];
     CELL_COUNT = cfg.cells; BASE_MS = cfg.baseMs; MIN_MS = cfg.minMs; SPEED_STEP = cfg.speedStep;
     const mid = Math.floor(CELL_COUNT / 2);
-    snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }];
+    snake     = [{ x:mid, y:mid }, { x:mid-1, y:mid }, { x:mid-2, y:mid }, { x:mid-3, y:mid }, { x:mid-4, y:mid }];
     dir       = 'right'; nextDir = 'right';
     score     = 0; tickMs = BASE_MS; deathTime = 0; foodPulse = 0;
     lungeQueue = 0; lungePauseUntil = 0; tongueFlickBorn = -Infinity;
@@ -1948,7 +1948,7 @@ function drawSnakeSmooth(cell) {
     ctx.lineWidth = bodyW * 0.36;
     ctx.stroke();
 
-    // Tail — 2-segment taper: full width at snake[n-2], narrowed at snake[n-1], rounded cap beyond
+    // Tail — full width at snake[n-2] curves gradually into a narrowed, rounded tip at snake[n-1]
     if (snake.length >= 2) {
         const n  = snake.length;
         const a  = snake[n-2], b = snake[n-1];
@@ -1956,6 +1956,7 @@ function drawSnakeSmooth(cell) {
         const px = -dy,      py = dx;              // perpendicular unit vec
         const ax = a.x*cell+hw, ay = a.y*cell+hw;
         const bx = b.x*cell+hw, by = b.y*cell+hw;
+        const mx = (ax+bx)/2, my = (ay+by)/2;
         const hw0 = bodyW / 2;          // full half-width at a
         const hw1 = bodyW / 2 * 0.45;  // narrowed half-width at b
         const tipR = hw1;                          // rounded cap radius
@@ -1963,9 +1964,11 @@ function drawSnakeSmooth(cell) {
         const tipAngle = Math.atan2(dy, dx);
         ctx.beginPath();
         ctx.moveTo(ax + px*hw0, ay + py*hw0);
-        ctx.lineTo(bx + px*hw1, by + py*hw1);
+        // bow the edge out to full width at the midpoint, then curve it in to the tip —
+        // reads as a gradual, organic taper instead of a straight-sided wedge
+        ctx.quadraticCurveTo(mx + px*hw0, my + py*hw0, bx + px*hw1, by + py*hw1);
         ctx.arc(tipCx, tipCy, tipR, tipAngle + Math.PI/2, tipAngle - Math.PI/2, true);
-        ctx.lineTo(ax - px*hw0, ay - py*hw0);
+        ctx.quadraticCurveTo(mx - px*hw0, my - py*hw0, ax - px*hw0, ay - py*hw0);
         ctx.closePath();
         ctx.fillStyle = '#278a27';
         ctx.fill();
