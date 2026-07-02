@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.51';
+const VERSION = 'v1.52';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -280,7 +280,7 @@ function buildBackground(cols, rows) {
 // until the snake passes through that exact cell again (from whatever direction it's
 // heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
 // always matches the current grid.
-const GRASS_PER_CELL = 24;
+const GRASS_PER_CELL = 96;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 
