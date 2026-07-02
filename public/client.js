@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.49';
+const VERSION = 'v1.50';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -318,13 +318,28 @@ function buildGrassField(cols, rows) {
     grassField = { cols, rows, blades, byCell };
 }
 
+// The body flattens a strip straight down its centerline and shoulders the grass on
+// either side outward at an angle — like it's actually being pushed aside, not just bent
+// forward. px,py is the left-hand perpendicular to travel; side = +1 left / -1 right / 0
+// center, based on where the blade sits across the cell relative to the direction of travel.
+const GRASS_CENTER_HALFWIDTH = 0.13; // fraction of a cell either side of centerline that stays "under" the body
+const GRASS_SIDE_MIX = 0.55;          // how much of the side-push is sideways vs forward-lean
+
 function bendGrassAt(cx, cy, dirx, diry) {
     if (!grassField) return;
     const list = grassField.byCell.get(cy * grassField.cols + cx);
     if (!list) return;
+    const px = -diry, py = dirx;
     for (const b of list) {
-        b.bx = dirx * GRASS_PUSH;
-        b.by = diry * GRASS_PUSH;
+        const perpOffset = (b.ox - 0.5) * px + (b.oy - 0.5) * py;
+        if (Math.abs(perpOffset) <= GRASS_CENTER_HALFWIDTH) {
+            b.bx = dirx * GRASS_PUSH;
+            b.by = diry * GRASS_PUSH;
+        } else {
+            const side = perpOffset > 0 ? 1 : -1;
+            b.bx = (dirx * (1 - GRASS_SIDE_MIX) + px * side * GRASS_SIDE_MIX) * GRASS_PUSH;
+            b.by = (diry * (1 - GRASS_SIDE_MIX) + py * side * GRASS_SIDE_MIX) * GRASS_PUSH;
+        }
     }
 }
 
@@ -2236,7 +2251,7 @@ function drawSnakeSmooth(cell) {
     if (!renderSnake.length) return;
     const rs    = renderSnake;
     const hw    = cell / 2;
-    const bodyW = cell * 0.80;
+    const bodyW = cell * 0.72;
     const ddx = dir==='right'?1: dir==='left'?-1:0;
     const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
     const headOffset = cell * 0.20;
