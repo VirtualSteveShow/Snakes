@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.67';
+const VERSION = 'v1.68';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -311,7 +311,9 @@ function buildBackground(cols, rows) {
 // along its direction of travel as it passes, and they stay laid over — permanently —
 // until the snake passes through that exact cell again (from whatever direction it's
 // heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
-// always matches the current grid.
+// always matches the current grid. Off by default — toggled in options (see initOptions);
+// the bare procedural ground (soil/dirt patches/stones) still shows either way.
+let grassEnabled = localStorage.getItem('snake_grass_on') === 'true';
 // Experimental "bold" look: far fewer, much larger blades with a black cartoon outline,
 // instead of a dense fine-grained field. These four are live-tunable from the options
 // panel's GRASS debug section (see initOptions) — grassPerCell/grassLenScale need a field
@@ -525,7 +527,7 @@ function strokeVariantPaths(paths, cell) {
 // one stroke() per blade — thousands of individual stroke calls was the actual cost, not
 // the blade count.
 function drawGrassField(cell) {
-    if (!grassField) return;
+    if (!grassEnabled || !grassField) return;
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -1326,6 +1328,15 @@ function initOptions() {
         syncH();
     });
 
+    const gBtn = document.getElementById('btn-grass');
+    const syncG = () => { gBtn.textContent = grassEnabled ? 'ON' : 'OFF'; gBtn.classList.toggle('off', !grassEnabled); };
+    syncG();
+    gBtn.addEventListener('click', () => {
+        grassEnabled = !grassEnabled;
+        localStorage.setItem('snake_grass_on', grassEnabled ? 'true' : 'false');
+        syncG();
+    });
+
     document.getElementById('btn-easy').addEventListener('click', () => setDifficulty('easy'));
     document.getElementById('btn-normal').addEventListener('click', () => setDifficulty('normal'));
     syncDiffBtns();
@@ -1645,11 +1656,13 @@ function tick() {
     // each segment's own movement this tick (its prevSnake position to its new one, same
     // pairing the render interpolation uses) bends the grass under it. A freshly-grown
     // tail segment has no prevSnake counterpart and didn't move, so it's skipped.
-    for (let i = 0; i < snake.length; i++) {
-        const p = i < prevSnake.length ? prevSnake[i] : snake[i];
-        const s = snake[i];
-        const gdx = s.x - p.x, gdy = s.y - p.y;
-        if (gdx || gdy) bendGrassAt(s.x, s.y, gdx, gdy);
+    if (grassEnabled) {
+        for (let i = 0; i < snake.length; i++) {
+            const p = i < prevSnake.length ? prevSnake[i] : snake[i];
+            const s = snake[i];
+            const gdx = s.x - p.x, gdy = s.y - p.y;
+            if (gdx || gdy) bendGrassAt(s.x, s.y, gdx, gdy);
+        }
     }
 
     if (gameMode === 'advanced' && babySnake.length > 0) {
@@ -2431,7 +2444,7 @@ function drawBabySnake(cell) {
 function spawnDebris(cell) {
     if (!snake.length) return;
     const head = snake[0];
-    if (onDirt(head.x + 0.5, head.y + 0.5)) {
+    if (!grassEnabled || onDirt(head.x + 0.5, head.y + 0.5)) {
         const angle = DEBRIS_ANGLE[dir] + (Math.random()-0.5)*1.4;
         const speed = cell * (0.05 + Math.random() * 0.08);
         particles.push({

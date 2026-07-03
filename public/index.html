@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Snakes">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=67">
+    <link rel="stylesheet" href="style.css?v=68">
     <title>Snakes</title>
 </head>
 <body>
@@ -85,6 +85,10 @@
         <div class="opt-row" style="gap:8px">
             <button id="btn-lb" class="toggle-btn off" style="flex:1;padding:5px 8px">🏆 SCORES</button>
             <button id="btn-fs" class="toggle-btn off" style="flex:1;padding:5px 8px">⛶ FULL</button>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">GRASS</span>
+            <button id="btn-grass" class="toggle-btn off">OFF</button>
         </div>
         <div class="opt-row"><span class="opt-label" style="opacity:0.6">— VISUAL DEBUG —</span></div>
         <div class="opt-row">
@@ -163,7 +167,7 @@
         </div>
     </div>
 
-    <script src="client.js?v=67"></script>
+    <script src="client.js?v=68"></script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>
