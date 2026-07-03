@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.61';
+const VERSION = 'v1.62';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -318,6 +318,10 @@ let grassPerCell      = 7;
 let grassLenScale     = 1.0;
 let grassWidthScale   = 1.0;
 let grassOutlineScale = 1.0;
+// Cartoon-style black border around the snake's body+head, same "wider shape drawn behind,
+// normal shape drawn on top" trick as the grass outline. 0 = off. Live-tunable from the
+// options panel's GRASS DEBUG section alongside the grass sliders.
+let snakeOutlineScale = 1.0;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 
@@ -356,7 +360,9 @@ function buildGrassField(cols, rows) {
                 if (onDirt(cx + ox, cy + oy)) continue;
                 blades.push({
                     cx, cy, ox, oy,
-                    tilt: (Math.random() - 0.5) * 0.35,
+                    tilt: (Math.random() - 0.5) * 0.9,   // resting lean — wide range, not all near-upright
+                    curveSign: Math.random() < 0.5 ? 1 : -1, // which way the blade bows — was always the same side
+                    curveAmt: 0.06 + Math.random() * 0.30,   // how much it bows — some nearly straight, some very hooked
                     len:  (0.85 + Math.random() * 0.55) * grassLenScale, // big stylized tufts, ~1-1.4 cells long
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
@@ -488,7 +494,7 @@ function drawGrassField(cell) {
             let tipX = baseX + dx * len;
             let tipY = baseY + dy * len;
             const perpX = -dy, perpY = dx;
-            const bulge = len * 0.22;
+            const bulge = len * b.curveAmt * b.curveSign;
             let midX = baseX + dx * len * 0.5 + perpX * bulge;
             let midY = baseY + dy * len * 0.5 + perpY * bulge;
 
@@ -1325,10 +1331,11 @@ function initOptions() {
     if (bHandL) bHandL.addEventListener('click', () => setHandedness('left'));
     setHandedness(handedness);
 
-    // Live-tunable grass look (grassPerCell/grassLenScale/grassWidthScale/grassOutlineScale,
-    // declared up near buildGrassField/drawGrassField). Count and length are baked into each
-    // blade at creation, so those two rebuild the field on change; width/outline are read
-    // fresh every frame in drawGrassField and don't need a rebuild.
+    // Live-tunable grass/snake look (grassPerCell/grassLenScale/grassWidthScale/
+    // grassOutlineScale/snakeOutlineScale, declared up near buildGrassField/drawGrassField/
+    // drawSnakeSmooth). Grass count and length are baked into each blade at creation, so
+    // those two rebuild the field on change; everything else is read fresh every frame and
+    // doesn't need a rebuild.
     const rebuildGrass = () => buildGrassField(CELL_COUNT, CELL_COUNT);
     const grassSliders = [
         { id: 'sl-grass-count',   valId: 'vl-grass-count',   key: 'snake_grass_count',   def: 7,   pct: false, rebuild: true,
@@ -1339,6 +1346,8 @@ function initOptions() {
           apply: v => { grassWidthScale = v / 100; } },
         { id: 'sl-grass-outline', valId: 'vl-grass-outline', key: 'snake_grass_outline', def: 100, pct: true,  rebuild: false,
           apply: v => { grassOutlineScale = v / 100; } },
+        { id: 'sl-snake-outline', valId: 'vl-snake-outline', key: 'snake_body_outline',  def: 100, pct: true,  rebuild: false,
+          apply: v => { snakeOutlineScale = v / 100; } },
     ];
     for (const s of grassSliders) {
         const el  = document.getElementById(s.id);
@@ -2509,6 +2518,21 @@ function drawSnakeSmooth(cell) {
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
     ctx.fill();
     ctx.restore();
+
+    // Black outline — a wider black silhouette drawn behind the body+head, which the
+    // normal-width fills below then cover everything but a border, same double-shape trick
+    // used for the grass outline.
+    if (snakeOutlineScale > 0) {
+        const outlinePad = Math.max(2, cell * 0.10 * snakeOutlineScale);
+        path();
+        ctx.strokeStyle = 'rgba(8,8,8,0.92)';
+        ctx.lineWidth = bodyW + outlinePad * 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(hcx, hcy, rLong + outlinePad, rShort + outlinePad, headAngle, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(8,8,8,0.92)';
+        ctx.fill();
+    }
 
     // Body base
     path();
