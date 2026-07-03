@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.64';
+const VERSION = 'v1.65';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1708,6 +1708,7 @@ function spawnWallImpact(x, y) {
             life: 1, decay: 0.028 + Math.random() * 0.02,
             size: 3 + Math.random() * 4.5,
             color: colors[Math.floor(Math.random() * colors.length)],
+            kind: 'impact', // drawn after the snake, for a punchy death effect (see draw())
         });
     }
 }
@@ -2048,6 +2049,15 @@ function draw() {
 
     if (gameState === 'start') { ctx.restore(); drawStart(size, cell); return; }
 
+    updateParticles();
+    // Dust kicked up by movement belongs on the ground, not floating on top of the snake —
+    // it used to draw after the body, so a particle freshly spawned at the head's own
+    // position (every tick) sat on the body as a flat, unoutlined square for its first few
+    // frames before drifting clear, which read as a rendering glitch against the outlined
+    // art style everything else now uses. The death-explosion burst (spawnWallImpact) is the
+    // opposite case — it should read as a punchy effect on top of things, so it's drawn
+    // separately, after the snake, further down.
+    drawParticles('debris');
     drawFood(cell);
     drawFly(cell);
     if (gameMode === 'advanced') {
@@ -2061,7 +2071,7 @@ function draw() {
     drawGrassOverlay(cell);
     drawTongueFlick(cell);
     if (gameState === 'entering') ctx.restore();
-    drawParticles();
+    drawParticles('impact');
     drawScorePops(cell);
 
     // Pen border
@@ -2465,15 +2475,24 @@ function spawnDebris(cell) {
         life: 1, decay: 0.030 + Math.random()*0.025,
         size: cell*(0.18 + Math.random()*0.20),
         color: DEBRIS_COLORS[Math.floor(Math.random()*DEBRIS_COLORS.length)],
+        kind: 'debris', // drawn on the ground layer, under the snake (see draw())
     });
 }
 
-
-function drawParticles() {
+// Physics only, once per frame regardless of how many kinds get drawn — drawParticles()
+// below is called twice (debris under the snake, impact bursts on top of it) and must not
+// double-update the same particles.
+function updateParticles() {
     for (let i = particles.length-1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life -= p.decay;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function drawParticles(kind) {
+    for (const p of particles) {
+        if (p.kind !== kind) continue;
         ctx.globalAlpha = p.life * 0.85;
         ctx.fillStyle = p.color;
         ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
