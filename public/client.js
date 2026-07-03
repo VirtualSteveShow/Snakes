@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.63';
+const VERSION = 'v1.64';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -373,6 +373,7 @@ function buildGrassField(cols, rows) {
                     transitioning: false, // in grassTransitioning list?
                     wig: 0, wigT: 0, wiggling: false, // decaying flutter kick, and in grassWiggling list?
                     wigPhase: Math.random() * 6.28,
+                    overlapEdge: Math.random() < 0.35, // eligible to be redrawn on top of the snake, see drawGrassOverlay
                 });
             }
         }
@@ -464,70 +465,114 @@ function updateGrassWiggle() {
     }
 }
 
-// Batched by variant into a handful of Path2D objects (one stroke() call each) instead of
-// one stroke() per blade — thousands of individual stroke calls was the actual cost, not
-// the blade count. Each variant's path is built once and stroked twice — a wide black pass
-// first, then the colored fill pass on top — for the cartoon-outline look, without having
-// to redo the per-blade curve math twice.
-function drawGrassField(cell) {
-    if (!grassField) return;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+// Builds one blade's curve into the given Path2D — shared by the main field pass and the
+// overlay pass (see drawGrassOverlay) so the per-blade math only lives in one place.
+function addBladePath(path, b, cell) {
+    const baseX = (b.cx + b.ox) * cell;
+    const baseY = (b.cy + b.oy) * cell;
+    const len   = b.len * cell;
+
+    // Blend direction from upright (plus a little natural tilt) toward the bend
+    // direction as bend magnitude grows, rather than adding the bend offset on
+    // top of the upright tip — that stretched bent blades noticeably longer than
+    // unbent ones instead of just leaning them over at a constant length.
+    const bendMag = Math.hypot(b.bx, b.by);
+    const lean = Math.min(1, bendMag / GRASS_PUSH);
+    let dx = b.tilt * (1 - lean) + (bendMag > 1e-6 ? (b.bx / bendMag) * lean : 0);
+    let dy = -1 * (1 - lean)     + (bendMag > 1e-6 ? (b.by / bendMag) * lean : 0);
+    const dmag = Math.hypot(dx, dy) || 1;
+    dx /= dmag; dy /= dmag;
+
+    let tipX = baseX + dx * len;
+    let tipY = baseY + dy * len;
+    const perpX = -dy, perpY = dx;
+    const bulge = len * b.curveAmt * b.curveSign;
+    let midX = baseX + dx * len * 0.5 + perpX * bulge;
+    let midY = baseY + dy * len * 0.5 + perpY * bulge;
+
+    // Decaying perpendicular flutter from a recent pass — makes the tip (and the
+    // curve's control point, half as much) shiver for a moment instead of the blade
+    // going instantly rigid the moment its bend target is reached.
+    if (b.wig > 0) {
+        const wob = Math.sin(b.wigT) * b.wig * len;
+        tipX += perpX * wob;
+        tipY += perpY * wob;
+        midX += perpX * wob * 0.5;
+        midY += perpY * wob * 0.5;
+    }
+
+    path.moveTo(baseX, baseY);
+    path.quadraticCurveTo(midX, midY, tipX, tipY);
+}
+
+// Strokes one Path2D per variant — a wide black outline pass, then the colored fill pass on
+// top (the cartoon-outline trick). Shared by the main field pass and the overlay pass.
+function strokeVariantPaths(paths, cell) {
     for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
         const variant = GRASS_VARIANTS[vi];
-        const path = new Path2D();
-        for (const b of grassField.blades) {
-            if (b.variant !== vi) continue;
-            const baseX = (b.cx + b.ox) * cell;
-            const baseY = (b.cy + b.oy) * cell;
-            const len   = b.len * cell;
-
-            // Blend direction from upright (plus a little natural tilt) toward the bend
-            // direction as bend magnitude grows, rather than adding the bend offset on
-            // top of the upright tip — that stretched bent blades noticeably longer than
-            // unbent ones instead of just leaning them over at a constant length.
-            const bendMag = Math.hypot(b.bx, b.by);
-            const lean = Math.min(1, bendMag / GRASS_PUSH);
-            let dx = b.tilt * (1 - lean) + (bendMag > 1e-6 ? (b.bx / bendMag) * lean : 0);
-            let dy = -1 * (1 - lean)     + (bendMag > 1e-6 ? (b.by / bendMag) * lean : 0);
-            const dmag = Math.hypot(dx, dy) || 1;
-            dx /= dmag; dy /= dmag;
-
-            let tipX = baseX + dx * len;
-            let tipY = baseY + dy * len;
-            const perpX = -dy, perpY = dx;
-            const bulge = len * b.curveAmt * b.curveSign;
-            let midX = baseX + dx * len * 0.5 + perpX * bulge;
-            let midY = baseY + dy * len * 0.5 + perpY * bulge;
-
-            // Decaying perpendicular flutter from a recent pass — makes the tip (and the
-            // curve's control point, half as much) shiver for a moment instead of the blade
-            // going instantly rigid the moment its bend target is reached.
-            if (b.wig > 0) {
-                const wob = Math.sin(b.wigT) * b.wig * len;
-                tipX += perpX * wob;
-                tipY += perpY * wob;
-                midX += perpX * wob * 0.5;
-                midY += perpY * wob * 0.5;
-            }
-
-            path.moveTo(baseX, baseY);
-            path.quadraticCurveTo(midX, midY, tipX, tipY);
-        }
         const fillWidth = Math.max(2, cell * 0.16 * variant.width * grassWidthScale);
-        // Black outline pass — wider, drawn first, so the fill pass on top leaves an even
-        // black border around each blade (the classic "stroke twice" cartoon-outline trick).
         // grassOutlineScale <= 0 means no minimum floor — the outline pass ends up the same
         // width as the fill pass and is fully covered by it, i.e. genuinely no outline.
         const outlinePad = grassOutlineScale > 0 ? Math.max(2, cell * 0.05 * grassOutlineScale) : 0;
         ctx.strokeStyle = 'rgba(15,15,15,0.88)';
         ctx.lineWidth = fillWidth + outlinePad;
-        ctx.stroke(path);
+        ctx.stroke(paths[vi]);
         ctx.strokeStyle = variant.color;
         ctx.lineWidth = fillWidth;
-        ctx.stroke(path);
+        ctx.stroke(paths[vi]);
     }
+}
+
+// Batched by variant into a handful of Path2D objects (one stroke() call each) instead of
+// one stroke() per blade — thousands of individual stroke calls was the actual cost, not
+// the blade count.
+function drawGrassField(cell) {
+    if (!grassField) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const paths = GRASS_VARIANTS.map(() => new Path2D());
+    for (const b of grassField.blades) addBladePath(paths[b.variant], b, cell);
+    strokeVariantPaths(paths, cell);
+    ctx.restore();
+}
+
+// A subset of blades near the snake (marked overlapEdge at build time, ~35% of them) are
+// redrawn a second time, after the snake, so tall grass at the fringe of the disturbed strip
+// pokes over the body's edge instead of always sitting fully behind it — reads as the snake
+// moving through grass rather than grass simply getting out of its way. Only mostly-upright
+// blades qualify; ones already flattened under the body stay behind it like before. Scoped to
+// the snake's current cells plus a 1-cell ring via the byCell map, so cost tracks snake
+// length, not total field size.
+function drawGrassOverlay(cell) {
+    if (!grassField || !snake.length) return;
+    const paths = GRASS_VARIANTS.map(() => new Path2D());
+    const seen = new Set();
+    let any = false;
+    for (const seg of snake) {
+        for (let oy = -1; oy <= 1; oy++) {
+            for (let ox = -1; ox <= 1; ox++) {
+                const cx = seg.x + ox, cy = seg.y + oy;
+                if (cx < 0 || cy < 0 || cx >= grassField.cols || cy >= grassField.rows) continue;
+                const key = cy * grassField.cols + cx;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const list = grassField.byCell.get(key);
+                if (!list) continue;
+                for (const b of list) {
+                    if (!b.overlapEdge) continue;
+                    if (Math.hypot(b.bx, b.by) > GRASS_PUSH * 0.35) continue;
+                    addBladePath(paths[b.variant], b, cell);
+                    any = true;
+                }
+            }
+        }
+    }
+    if (!any) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    strokeVariantPaths(paths, cell);
     ctx.restore();
 }
 let handedness      = localStorage.getItem('snake_hand') || 'right';
@@ -2013,6 +2058,7 @@ function draw() {
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
+    drawGrassOverlay(cell);
     drawTongueFlick(cell);
     if (gameState === 'entering') ctx.restore();
     drawParticles();
