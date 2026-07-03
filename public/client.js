@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.60';
+const VERSION = 'v1.61';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -310,9 +310,14 @@ function buildBackground(cols, rows) {
 // heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
 // always matches the current grid.
 // Experimental "bold" look: far fewer, much larger blades with a black cartoon outline,
-// instead of a dense fine-grained field. Tune GRASS_PER_CELL / the len range below / the
-// outline width in drawGrassField to taste.
-const GRASS_PER_CELL = 7;
+// instead of a dense fine-grained field. These four are live-tunable from the options
+// panel's GRASS debug section (see initOptions) — grassPerCell/grassLenScale need a field
+// rebuild to take effect (baked into each blade at creation), grassWidthScale/
+// grassOutlineScale are read fresh every frame in drawGrassField.
+let grassPerCell      = 7;
+let grassLenScale     = 1.0;
+let grassWidthScale   = 1.0;
+let grassOutlineScale = 1.0;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 
@@ -343,7 +348,7 @@ function buildGrassField(cols, rows) {
     const blades = [];
     for (let cy = 0; cy < rows; cy++) {
         for (let cx = 0; cx < cols; cx++) {
-            for (let k = 0; k < GRASS_PER_CELL; k++) {
+            for (let k = 0; k < grassPerCell; k++) {
                 // Full 0-1 range, not a margin inset — an inset left a systematic gap at
                 // every cell boundary, which read as a visible grid across the whole field.
                 const ox = Math.random();
@@ -352,7 +357,7 @@ function buildGrassField(cols, rows) {
                 blades.push({
                     cx, cy, ox, oy,
                     tilt: (Math.random() - 0.5) * 0.35,
-                    len:  0.85 + Math.random() * 0.55, // big stylized tufts, ~1-1.4 cells long
+                    len:  (0.85 + Math.random() * 0.55) * grassLenScale, // big stylized tufts, ~1-1.4 cells long
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
                     tbx: 0, tby: 0,   // target bend set by bendGrassAt
@@ -501,11 +506,14 @@ function drawGrassField(cell) {
             path.moveTo(baseX, baseY);
             path.quadraticCurveTo(midX, midY, tipX, tipY);
         }
-        const fillWidth = Math.max(2, cell * 0.16 * variant.width);
+        const fillWidth = Math.max(2, cell * 0.16 * variant.width * grassWidthScale);
         // Black outline pass — wider, drawn first, so the fill pass on top leaves an even
         // black border around each blade (the classic "stroke twice" cartoon-outline trick).
+        // grassOutlineScale <= 0 means no minimum floor — the outline pass ends up the same
+        // width as the fill pass and is fully covered by it, i.e. genuinely no outline.
+        const outlinePad = grassOutlineScale > 0 ? Math.max(2, cell * 0.05 * grassOutlineScale) : 0;
         ctx.strokeStyle = 'rgba(15,15,15,0.88)';
-        ctx.lineWidth = fillWidth + Math.max(2, cell * 0.05);
+        ctx.lineWidth = fillWidth + outlinePad;
         ctx.stroke(path);
         ctx.strokeStyle = variant.color;
         ctx.lineWidth = fillWidth;
@@ -1316,6 +1324,47 @@ function initOptions() {
     if (bHandR) bHandR.addEventListener('click', () => setHandedness('right'));
     if (bHandL) bHandL.addEventListener('click', () => setHandedness('left'));
     setHandedness(handedness);
+
+    // Live-tunable grass look (grassPerCell/grassLenScale/grassWidthScale/grassOutlineScale,
+    // declared up near buildGrassField/drawGrassField). Count and length are baked into each
+    // blade at creation, so those two rebuild the field on change; width/outline are read
+    // fresh every frame in drawGrassField and don't need a rebuild.
+    const rebuildGrass = () => buildGrassField(CELL_COUNT, CELL_COUNT);
+    const grassSliders = [
+        { id: 'sl-grass-count',   valId: 'vl-grass-count',   key: 'snake_grass_count',   def: 7,   pct: false, rebuild: true,
+          apply: v => { grassPerCell = v; } },
+        { id: 'sl-grass-len',     valId: 'vl-grass-len',     key: 'snake_grass_len',     def: 100, pct: true,  rebuild: true,
+          apply: v => { grassLenScale = v / 100; } },
+        { id: 'sl-grass-width',   valId: 'vl-grass-width',   key: 'snake_grass_width',   def: 100, pct: true,  rebuild: false,
+          apply: v => { grassWidthScale = v / 100; } },
+        { id: 'sl-grass-outline', valId: 'vl-grass-outline', key: 'snake_grass_outline', def: 100, pct: true,  rebuild: false,
+          apply: v => { grassOutlineScale = v / 100; } },
+    ];
+    for (const s of grassSliders) {
+        const el  = document.getElementById(s.id);
+        const val = document.getElementById(s.valId);
+        const saved = parseInt(localStorage.getItem(s.key) || String(s.def), 10);
+        el.value = saved;
+        val.textContent = s.pct ? `${saved}%` : String(saved);
+        s.apply(saved);
+        el.addEventListener('input', () => {
+            const v = parseInt(el.value, 10);
+            val.textContent = s.pct ? `${v}%` : String(v);
+            localStorage.setItem(s.key, String(v));
+            s.apply(v);
+            if (s.rebuild) rebuildGrass();
+        });
+    }
+    const grassResetBtn = document.getElementById('btn-grass-reset');
+    if (grassResetBtn) grassResetBtn.addEventListener('click', () => {
+        for (const s of grassSliders) {
+            document.getElementById(s.id).value = s.def;
+            document.getElementById(s.valId).textContent = s.pct ? `${s.def}%` : String(s.def);
+            localStorage.setItem(s.key, String(s.def));
+            s.apply(s.def);
+        }
+        rebuildGrass();
+    });
 
     const closeBar = document.getElementById('opts-close-bar');
     if (closeBar) closeBar.addEventListener('click', () => { if (optionsOpen) toggleOptions(); });
