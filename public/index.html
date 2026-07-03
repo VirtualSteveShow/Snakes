@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Snakes">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=69">
+    <link rel="stylesheet" href="style.css?v=70">
     <title>Snakes</title>
 </head>
 <body>
@@ -21,29 +21,15 @@
                 <span id="sb-name-text"></span>
             </button>
         </div>
-        <div id="adv-hud"><span id="coin-display">⚡ 0</span><span id="mode-badge">ADV</span></div>
+        <div id="adv-hud">
+            <div id="xp-bar-wrap"><div id="xp-bar-fill"></div></div>
+            <span id="xp-level-badge">Lv 1</span>
+        </div>
         <div id="scoreboard">
             <span>SCORE: <span id="score-val">0</span></span>
             <span>BEST: <span id="highscore-val">0</span></span>
         </div>
         <canvas id="game-canvas"></canvas>
-        <div id="ability-bar">
-            <button class="abl-btn level0" id="abl-tongue">
-                <span class="abl-name">TONGUE</span>
-                <span class="abl-level" id="abl-tongue-level">–</span>
-                <span class="abl-cd" id="abl-tongue-cd">LOCKED</span>
-            </button>
-            <button class="abl-btn level0" id="abl-slowtime">
-                <span class="abl-name">SLOW TIME</span>
-                <span class="abl-level" id="abl-slowtime-level">–</span>
-                <span class="abl-cd" id="abl-slowtime-cd">LOCKED</span>
-            </button>
-            <button class="abl-btn level0" id="abl-babysnake">
-                <span class="abl-name">SIDEKICK</span>
-                <span class="abl-level" id="abl-babysnake-level">–</span>
-                <span class="abl-cd" id="abl-babysnake-cd">LOCKED</span>
-            </button>
-        </div>
     </div>
 
     <!-- Options panel: fixed, slides down from top -->
@@ -127,13 +113,11 @@
         <button id="btn-pause" class="pause-btn" title="Pause">⏸</button>
     </div>
 
-    <!-- Shop overlay -->
-    <div id="shop-overlay" class="game-overlay hidden">
+    <!-- Level-up overlay -->
+    <div id="levelup-overlay" class="game-overlay hidden">
         <div class="overlay-box">
-            <div class="overlay-title">SHOP</div>
-            <div class="shop-coins">⚡ <span id="shop-coin-val">0</span> coins</div>
-            <div id="shop-items"></div>
-            <button id="btn-shop-close" class="overlay-btn secondary">Resume Game</button>
+            <div class="overlay-title">LEVEL UP!</div>
+            <div id="levelup-cards"></div>
         </div>
     </div>
 
@@ -167,7 +151,7 @@
         </div>
     </div>
 
-    <script src="client.js?v=69"></script>
+    <script src="client.js?v=70"></script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>

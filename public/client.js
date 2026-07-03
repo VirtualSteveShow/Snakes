@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.69';
+const VERSION = 'v1.70';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -157,7 +157,7 @@ let renderSnake = [];      // interpolated snake used by all render code; rebuil
 let digestingFood = [];
 
 function updateRenderSnake(now) {
-    if (gameState !== 'running' || shopOpen || !snake.length || now < lastTick) {
+    if (gameState !== 'running' || levelUpOpen || !snake.length || now < lastTick) {
         // now < lastTick happens during the post-lunge pause, which parks lastTick in the
         // future as a scheduling hack — nothing is moving then, so show the settled position.
         renderSnake = snake;
@@ -572,43 +572,69 @@ const GRASS_FLECK_COLORS = ['#2f7a1a','#3f9722','#5ab52f','#7bcf4a'];
 const DEBRIS_ANGLE  = { right: Math.PI, left: 0, up: Math.PI/2, down: -Math.PI/2 };
 
 // ── Advanced mode state ───────────────────────────────────────
-let coins          = [];       // {x,y}[] on-grid coin pickups
-let shopBlock      = null;     // {x,y} | null
-let playerCoins    = 0;
-let foodForShop    = 0;        // food eaten since last shop spawn
-let shopOpen       = false;
+// XP/level-up system (Vampire-Survivors style): eating food/flies grants XP, filling xpBar;
+// crossing a threshold queues a level-up prompt offering 2-3 random ability picks. No economy,
+// no ability buttons — Sprint/Dash keep their classic gesture triggers (hold/tap), the rest
+// auto-trigger once picked. See tick() for the per-tick auto-ability checks.
+let xp             = 0;
+let xpLevel        = 1;
+let levelUpQueue   = 0;        // pending level-up prompts not yet shown
+let levelUpOpen    = false;    // pauses tick()/input while a level-up card is up (like shopOpen did)
+let levelUpChoices = [];       // ability keys currently offered
+let armorCharges   = 0;        // remaining Armor charges (see tick()'s collision checks)
 let tongue         = null;     // {ex,ey} tongue endpoint while visible
 let tongueVisUntil = 0;        // performance.now() deadline for tongue visual
-let babySnake      = [];       // {x,y}[] helper snake segments
-let babyUntil      = 0;        // performance.now() when sidekick expires
+let babySnake      = [];       // {x,y}[] sidekick helper segments
+let babyUntil      = 0;        // performance.now() when the sidekick's current cycle ends (auto-respawns)
 let slowUntil      = 0;        // performance.now() when slow-time expires
 
-let abilityLevels    = { tongue:0, slowtime:0, babysnake:0 };  // 0=locked, 1/2/3
-let abilityCooldowns = { tongue:0, slowtime:0, babysnake:0 };  // ready-at timestamp
+let abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0 }; // 0=locked, 1/2/3
+let abilityCooldowns = { dash:0, tongue:0, slowtime:0 }; // ready-at timestamp — only the 3 cooldown-based abilities need this
+
+function xpForLevel(l) { return 5 + (l - 1) * 3; }
 
 const ABILITY_CFG = {
+    sprint: {
+        name: 'SPRINT',
+        descs: ['Hold to move faster', 'Hold for more speed', 'Hold for max speed'],
+        floorMult: [0.85, 0.70, 0.55], // MIN_MS floor multiplier
+        factor:    [0.70, 0.58, 0.45], // tickMs multiplier while held
+    },
+    dash: {
+        name: 'DASH',
+        descs: ['Tap to dash to food (short range)', 'Longer range, shorter cooldown', 'Max range, fastest cooldown'],
+        cooldowns: [4000, 2200, 800],
+        maxRange:  [6, 12, 999],
+    },
     tongue: {
         name: 'TONGUE',
-        descs:     ['Snag food/coins in front', 'Longer reach', 'Max range'],
-        costs:     [5, 8, 12],
+        descs: ['Auto-grabs food ahead', 'Longer reach', 'Max range'],
         cooldowns: [8000, 6000, 4000],
         ranges:    [4, 7, 11],
     },
     slowtime: {
         name: 'SLOW TIME',
-        descs:     ['3s speed halved', '5s speed halved', '7s speed halved'],
-        costs:     [6, 10, 15],
+        descs: ['Periodic 3s slow-mo', 'Periodic 5s slow-mo', 'Periodic 7s slow-mo'],
         cooldowns: [12000, 10000, 8000],
         durations: [3000, 5000, 7000],
     },
-    babysnake: {
+    sidekick: {
         name: 'SIDEKICK',
-        descs:     ['10s coin collector', '15s coin collector', '20s coin collector'],
-        costs:     [8, 12, 18],
-        cooldowns: [15000, 12000, 10000],
+        descs: ['A helper snake collects food for you', 'Faster-cycling helper', 'Best helper'],
         durations: [10000, 15000, 20000],
     },
+    armor: {
+        name: 'ARMOR',
+        descs: ['Survive 1 fatal hit', 'Survive 2 fatal hits', 'Survive 3 fatal hits'],
+        charges: [1, 2, 3],
+    },
+    magnet: {
+        name: 'MAGNET',
+        descs: ['Auto-collect food within 1 tile', 'Auto-collect within 2 tiles', 'Auto-collect within 3 tiles'],
+        radius: [1, 2, 3],
+    },
 };
+const ABILITY_POOL = Object.keys(ABILITY_CFG);
 
 // ── Profile system ────────────────────────────────────────────
 let _pendingAvatar = null;    // base64 data URL from image picker
@@ -1086,166 +1112,137 @@ function syncModeBtns() {
 
 function updateAdvancedUI() {
     const hud = document.getElementById('adv-hud');
-    const bar = document.getElementById('ability-bar');
     const isAdv = gameMode === 'advanced';
     if (hud) hud.classList.toggle('visible', isAdv);
-    if (bar) bar.classList.toggle('visible', isAdv);
-    if (isAdv) { updateAdvancedHUD(); updateAbilityBar(); }
+    if (isAdv) updateAdvancedHUD();
     resize();
 }
 
 function updateAdvancedHUD() {
-    const el = document.getElementById('coin-display');
-    if (el) el.textContent = `⚡ ${playerCoins}`;
+    const fill = document.getElementById('xp-bar-fill');
+    const lvl  = document.getElementById('xp-level-badge');
+    if (fill) fill.style.width = `${Math.min(100, (xp / xpForLevel(xpLevel)) * 100)}%`;
+    if (lvl)  lvl.textContent = `Lv ${xpLevel}`;
 }
 
-function updateAbilityBar() {
-    const now = performance.now();
-    for (const key of ['tongue', 'slowtime', 'babysnake']) {
-        const btn    = document.getElementById(`abl-${key}`);
-        const lvlEl  = document.getElementById(`abl-${key}-level`);
-        const cdEl   = document.getElementById(`abl-${key}-cd`);
-        if (!btn || !lvlEl || !cdEl) continue;
-        const level   = abilityLevels[key];
-        const ready   = abilityCooldowns[key] <= now;
-        const isActive = (key === 'slowtime'   && now < slowUntil)
-                       || (key === 'babysnake' && babySnake.length > 0 && now < babyUntil);
-        lvlEl.textContent = level > 0 ? `L${level}` : '–';
-        if (level === 0) {
-            cdEl.textContent = 'LOCKED'; btn.className = 'abl-btn level0';
-        } else if (isActive) {
-            cdEl.textContent = 'ACTIVE'; btn.className = 'abl-btn active-now';
-        } else if (ready) {
-            cdEl.textContent = 'READY';  btn.className = 'abl-btn ready';
-        } else {
-            const ms = abilityCooldowns[key] - now;
-            cdEl.textContent = `${Math.ceil(ms / 1000)}s`; btn.className = 'abl-btn';
-        }
+// ── XP / level-up ─────────────────────────────────────────────
+function gainXP(n) {
+    xp += n;
+    while (xp >= xpForLevel(xpLevel)) {
+        xp -= xpForLevel(xpLevel);
+        xpLevel++;
+        levelUpQueue++;
     }
+    updateAdvancedHUD();
+    if (levelUpQueue > 0 && !levelUpOpen) showNextLevelUp();
 }
 
-// ── Shop ──────────────────────────────────────────────────────
-function openShop() {
-    shopOpen = true;
-    renderShop();
-    document.getElementById('shop-overlay').classList.remove('hidden');
+function rollAbilityChoices() {
+    const pool = ABILITY_POOL.filter(k => abilityLevels[k] < 3);
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 3);
 }
 
-function closeShop() {
-    shopOpen = false;
-    document.getElementById('shop-overlay').classList.add('hidden');
+function showNextLevelUp() {
+    if (levelUpQueue <= 0) return;
+    const choices = rollAbilityChoices();
+    levelUpQueue--;
+    if (!choices.length) { if (levelUpQueue > 0) showNextLevelUp(); return; } // everything maxed
+    levelUpChoices = choices;
+    levelUpOpen = true;
+    renderLevelUp();
+    document.getElementById('levelup-overlay').classList.remove('hidden');
+    sfxCoin(); vibrate([20, 20, 20]);
+}
+
+function pickAbility(key) {
+    abilityLevels[key]++;
+    const level = abilityLevels[key];
+    if (key === 'sidekick' && level === 1) activateBabySnake(level);
+    if (key === 'armor') armorCharges = ABILITY_CFG.armor.charges[level - 1];
+    document.getElementById('levelup-overlay').classList.add('hidden');
+    levelUpOpen = false;
     lastTick = performance.now();
+    if (levelUpQueue > 0) showNextLevelUp();
 }
 
-function renderShop() {
-    document.getElementById('shop-coin-val').textContent = playerCoins;
-    const list = document.getElementById('shop-items');
+function renderLevelUp() {
+    const list = document.getElementById('levelup-cards');
     list.innerHTML = '';
-    for (const key of ['tongue', 'slowtime', 'babysnake']) {
+    for (const key of levelUpChoices) {
         const cfg   = ABILITY_CFG[key];
         const level = abilityLevels[key];
-        const row   = document.createElement('div'); row.className = 'shop-item';
-        const info  = document.createElement('div'); info.className = 'shop-item-info';
-        const nm    = document.createElement('div'); nm.className = 'shop-item-name'; nm.textContent = cfg.name;
-        const desc  = document.createElement('div'); desc.className = 'shop-item-desc';
-        desc.textContent = level === 0 ? 'Not owned' : (level === 3 ? 'MAX LEVEL' : `Level ${level} / 3 — ${cfg.descs[level]}`);
-        info.append(nm, desc);
-        const btn = document.createElement('button');
-        if (level >= 3) {
-            btn.className = 'shop-upg-btn maxed'; btn.textContent = 'MAX'; btn.disabled = true;
-        } else {
-            const cost = cfg.costs[level];
-            btn.className = 'shop-upg-btn';
-            btn.textContent = level === 0 ? `BUY ⚡${cost}` : `L${level+1} ⚡${cost}`;
-            btn.disabled = playerCoins < cost;
-            btn.onclick = () => {
-                if (playerCoins < cost) return;
-                playerCoins -= cost;
-                abilityLevels[key]++;
-                updateAdvancedHUD();
-                updateAbilityBar();
-                renderShop();
-            };
-        }
-        row.append(info, btn);
-        list.appendChild(row);
+        const card = document.createElement('button'); card.className = 'lvlup-card';
+        const nm = document.createElement('div'); nm.className = 'lvlup-name'; nm.textContent = cfg.name;
+        const lv = document.createElement('div'); lv.className = 'lvlup-lvl';
+        lv.textContent = level === 0 ? 'NEW' : `Lv ${level} → ${level + 1}`;
+        const ds = document.createElement('div'); ds.className = 'lvlup-desc'; ds.textContent = cfg.descs[level];
+        card.append(nm, lv, ds);
+        card.onclick = () => pickAbility(key);
+        list.appendChild(card);
     }
 }
 
-// ── Ability use ───────────────────────────────────────────────
-function useAbility(key) {
-    if (gameState !== 'running' || gameMode !== 'advanced' || shopOpen) return;
-    const level = abilityLevels[key];
-    if (level === 0) return;
-    const now = performance.now();
-    if (abilityCooldowns[key] > now) return;
-    if (key === 'tongue')    activateTongue(level);
-    if (key === 'slowtime')  activateSlowTime(level);
-    if (key === 'babysnake') activateBabySnake(level);
-    abilityCooldowns[key] = now + ABILITY_CFG[key].cooldowns[level - 1];
-    updateAbilityBar();
+// ── Ability effects ───────────────────────────────────────────
+// Shared by the main snake (via tick()), Tongue, Sidekick, and Magnet — grants the same
+// reward as eating normally without requiring the main snake's body to occupy the cell.
+function collectFoodAt(x, y) {
+    if (x !== food.x || y !== food.y) return false;
+    score += 1; if (score > highScore) highScore = score;
+    updateScoreDisplay(); sfxCoin(); vibrate(15);
+    if (gameMode === 'advanced') gainXP(1);
+    spawnFood();
+    return true;
 }
 
 function activateTongue(level) {
-    if (!snake.length) return;
+    if (!snake.length) return false;
     const range = ABILITY_CFG.tongue.ranges[level - 1];
     const dx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
     const dy = dir === 'down'  ? 1 : dir === 'up'   ? -1 : 0;
-    let ex = snake[0].x, ey = snake[0].y;
     for (let i = 1; i <= range; i++) {
         const tx = snake[0].x + dx*i, ty = snake[0].y + dy*i;
         if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
-        ex = tx; ey = ty;
         if (tx === food.x && ty === food.y) {
-            score += 1; if (score > highScore) highScore = score;
-            updateScoreDisplay(); sfxEat(); vibrate(25); spawnFood();
-            foodForShop++;
-            if (foodForShop >= 10) { foodForShop = 0; spawnShopBlock(); }
-            if (coins.length < 3) spawnCoins(1);
-            break;
+            collectFoodAt(tx, ty);
+            tongue = { ex: tx, ey: ty };
+            tongueVisUntil = performance.now() + 380;
+            abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
+            return true;
         }
-        const ci = coins.findIndex(c => c.x === tx && c.y === ty);
-        if (ci !== -1) { coins.splice(ci, 1); playerCoins++; updateAdvancedHUD(); sfxCoin(); vibrate(10); break; }
     }
-    tongue = { ex, ey };
-    tongueVisUntil = performance.now() + 380;
+    return false;
 }
 
 function activateSlowTime(level) {
     slowUntil = performance.now() + ABILITY_CFG.slowtime.durations[level - 1];
+    abilityCooldowns.slowtime = slowUntil + ABILITY_CFG.slowtime.cooldowns[level - 1];
 }
 
 function activateBabySnake(level) {
-    babyUntil = performance.now() + ABILITY_CFG.babysnake.durations[level - 1];
+    babyUntil = performance.now() + ABILITY_CFG.sidekick.durations[level - 1];
     const occ = new Set(snake.map(s => `${s.x},${s.y}`));
     occ.add(`${food.x},${food.y}`);
-    coins.forEach(c => occ.add(`${c.x},${c.y}`));
-    if (shopBlock) occ.add(`${shopBlock.x},${shopBlock.y}`);
     const free = [];
     for (let x = 0; x < CELL_COUNT; x++)
         for (let y = 0; y < CELL_COUNT; y++)
             if (!occ.has(`${x},${y}`)) free.push({ x, y });
-    if (free.length < 3) { babyUntil = 0; return; }
+    if (free.length < 3) { babyUntil = performance.now() + 500; return; } // board's full, retry shortly
     const si = Math.floor(Math.random() * (free.length - 2));
     babySnake = [free[si], free[si+1], free[si+2]];
 }
 
 function tickBabySnake() {
     if (!babySnake.length) return;
-    const targets = [...coins];
-    if (!targets.length) targets.push(food);
     const head = babySnake[0];
-    let best = null, bestDist = Infinity;
-    for (const t of targets) {
-        const d = Math.abs(t.x - head.x) + Math.abs(t.y - head.y);
-        if (d < bestDist) { bestDist = d; best = t; }
-    }
-    if (!best) return;
     const moves = [];
-    if (best.x > head.x) moves.push({ dx:1, dy:0 });
-    else if (best.x < head.x) moves.push({ dx:-1, dy:0 });
-    if (best.y > head.y) moves.push({ dx:0, dy:1 });
-    else if (best.y < head.y) moves.push({ dx:0, dy:-1 });
+    if (food.x > head.x) moves.push({ dx:1, dy:0 });
+    else if (food.x < head.x) moves.push({ dx:-1, dy:0 });
+    if (food.y > head.y) moves.push({ dx:0, dy:1 });
+    else if (food.y < head.y) moves.push({ dx:0, dy:-1 });
     const fallback = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
     for (const mv of [...moves, ...fallback]) {
         const nx = head.x + mv.dx, ny = head.y + mv.dy;
@@ -1253,38 +1250,9 @@ function tickBabySnake() {
         if (babySnake.some(s => s.x===nx && s.y===ny)) continue;
         if (snake.some(s => s.x===nx && s.y===ny)) continue;
         babySnake.unshift({ x:nx, y:ny }); babySnake.pop();
-        const ci = coins.findIndex(c => c.x===nx && c.y===ny);
-        if (ci !== -1) { coins.splice(ci, 1); playerCoins++; updateAdvancedHUD(); sfxCoin(); vibrate(10); if (coins.length < 3) spawnCoins(1); }
+        collectFoodAt(nx, ny);
         break;
     }
-}
-
-// ── Advanced spawning ─────────────────────────────────────────
-function spawnCoins(n) {
-    const occ = new Set(snake.map(s => `${s.x},${s.y}`));
-    occ.add(`${food.x},${food.y}`);
-    if (shopBlock) occ.add(`${shopBlock.x},${shopBlock.y}`);
-    coins.forEach(c => occ.add(`${c.x},${c.y}`));
-    const free = [];
-    for (let x = 0; x < CELL_COUNT; x++)
-        for (let y = 0; y < CELL_COUNT; y++)
-            if (!occ.has(`${x},${y}`)) free.push({ x, y });
-    for (let i = 0; i < n && free.length; i++) {
-        const idx = Math.floor(Math.random() * free.length);
-        coins.push(free.splice(idx, 1)[0]);
-    }
-}
-
-function spawnShopBlock() {
-    if (shopBlock) return;
-    const occ = new Set(snake.map(s => `${s.x},${s.y}`));
-    occ.add(`${food.x},${food.y}`);
-    coins.forEach(c => occ.add(`${c.x},${c.y}`));
-    const free = [];
-    for (let x = 0; x < CELL_COUNT; x++)
-        for (let y = 0; y < CELL_COUNT; y++)
-            if (!occ.has(`${x},${y}`)) free.push({ x, y });
-    if (free.length) shopBlock = free[Math.floor(Math.random() * free.length)];
 }
 
 // ── Options panel ─────────────────────────────────────────────
@@ -1421,14 +1389,8 @@ function init() {
     loadProfileHighScore();
 
     document.getElementById('btn-pause').addEventListener('click', e => { e.stopPropagation(); togglePause(); });
-    document.getElementById('btn-shop-close').addEventListener('click', closeShop);
-
-    for (const key of ['tongue', 'slowtime', 'babysnake']) {
-        document.getElementById(`abl-${key}`).addEventListener('click', () => useAbility(key));
-    }
 
     updateAdvancedUI();
-    setInterval(() => { if (gameMode === 'advanced') updateAbilityBar(); }, 200);
 
     buildBackground(CELL_COUNT, CELL_COUNT);
     buildGrassField(CELL_COUNT, CELL_COUNT); // so the title screen isn't bare before the first game starts
@@ -1445,10 +1407,8 @@ function resize() {
     const sb   = document.getElementById('scoreboard');
     const ph   = document.getElementById('profile-header');
     const hud  = document.getElementById('adv-hud');
-    const bar  = document.getElementById('ability-bar');
     const extraH = (ph ? ph.offsetHeight : 0)
-                 + (hud && hud.classList.contains('visible') ? hud.offsetHeight : 0)
-                 + (bar && bar.classList.contains('visible') ? bar.offsetHeight : 0);
+                 + (hud && hud.classList.contains('visible') ? hud.offsetHeight : 0);
     const size = Math.min(area.clientWidth, area.clientHeight - sb.offsetHeight - extraH - 10, MAX_CANVAS);
     canvas.width = canvas.height = Math.max(size, 0);
 }
@@ -1485,7 +1445,8 @@ function setupTouch() {
     document.addEventListener('touchstart', e => {
         if (e.target.closest('button') || e.target.closest('input')) return;
         sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-        if (gameState === 'running') {
+        // Sprint — advanced mode only, and only once picked (see ABILITY_CFG.sprint).
+        if (gameState === 'running' && gameMode === 'advanced' && abilityLevels.sprint > 0) {
             clearTimeout(holdBoostTimer);
             holdBoostTimer = setTimeout(() => { holdBoost = true; }, HOLD_BOOST_DELAY);
         }
@@ -1564,16 +1525,17 @@ function startGame() {
     enterSlideX = -canvas.width;
     enterStart  = performance.now();
 
-    coins = []; shopBlock = null; playerCoins = 0; foodForShop = 0; shopOpen = false;
+    xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0;
+    abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0 };
+    abilityCooldowns = { dash:0, tongue:0, slowtime:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
-    abilityCooldowns = { tongue:0, slowtime:0, babysnake:0 };
     particles = []; scorePops = []; shakeMag = 0;
+    document.getElementById('levelup-overlay').classList.add('hidden');
 
     updateScoreDisplay();
     updateAdvancedHUD();
     updatePauseBtn();
     spawnFood();
-    if (gameMode === 'advanced') spawnCoins(3);
     lastTick = performance.now(); // music starts after entering animation
 }
 
@@ -1598,32 +1560,32 @@ function tick() {
     if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) {
         const ix = snake[0].x*cell + cell/2 + (dir==='right'?cell/2: dir==='left'?-cell/2:0);
         const iy = snake[0].y*cell + cell/2 + (dir==='down' ?cell/2: dir==='up'  ?-cell/2:0);
+        if (gameMode === 'advanced' && armorCharges > 0) {
+            armorCharges--; spawnArmorBreak(ix, iy); vibrate(40); shakeMag = 6;
+            return;
+        }
         die('wall', ix, iy);
         return;
     }
-    if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die('self'); return; }
+    if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) {
+        if (gameMode === 'advanced' && armorCharges > 0) {
+            const hx = snake[0].x*cell+cell/2, hy = snake[0].y*cell+cell/2;
+            armorCharges--; spawnArmorBreak(hx, hy); vibrate(40); shakeMag = 6;
+            return;
+        }
+        die('self'); return;
+    }
 
     // Digesting food travels toward the tail as a physical piece of the body — every tick
     // shifts each body identity back one array slot (a new head gets prepended), so bump
     // segIndex here, before that shift happens, then add this tick's own swallow at 0 below.
     for (const b of digestingFood) b.segIndex++;
 
-    if (gameMode === 'advanced') {
-        const ci = coins.findIndex(c => c.x===nx && c.y===ny);
-        if (ci !== -1) { coins.splice(ci, 1); playerCoins++; updateAdvancedHUD(); sfxCoin(); vibrate(10); }
-    }
-
     const eating = nx===food.x && ny===food.y;
     if (eating && snake[snake.length-1].x===nx && snake[snake.length-1].y===ny) { die(); return; }
     const eatX = food.x * cell + cell/2, eatY = food.y * cell + cell/2;
     snake.unshift({ x:nx, y:ny });
     spawnDebris(cell);
-
-    if (gameMode === 'advanced' && shopBlock && nx===shopBlock.x && ny===shopBlock.y) {
-        snake.pop();
-        openShop();
-        return;
-    }
 
     // Fly catch — grows snake, +FLY_POINTS
     let flyEaten = false;
@@ -1635,6 +1597,7 @@ function tick() {
         scorePops.push({ x: nx*cell+cell/2, y: ny*cell+cell/2, born: performance.now(), val: `+${FLY_POINTS}` });
         stopFlyBuzz(); fly = null;
         digestingFood.push({ segIndex: 0 });
+        if (gameMode === 'advanced') gainXP(3);
     }
 
     if (eating) {
@@ -1646,11 +1609,7 @@ function tick() {
         tongueFlickBorn = performance.now();
         scorePops.push({ x: eatX, y: eatY, born: performance.now() });
         digestingFood.push({ segIndex: 0 });
-        if (gameMode === 'advanced') {
-            foodForShop++;
-            if (foodForShop >= 10) { foodForShop = 0; spawnShopBlock(); }
-            if (coins.length < 3) spawnCoins(1);
-        }
+        if (gameMode === 'advanced') gainXP(1);
         if (!fly && Math.random() < FLY_SPAWN_CHANCE) spawnFly();
     } else if (!flyEaten) { snake.pop(); }
     digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
@@ -1668,9 +1627,24 @@ function tick() {
         }
     }
 
-    if (gameMode === 'advanced' && babySnake.length > 0) {
-        if (performance.now() < babyUntil) tickBabySnake();
-        else { babySnake = []; updateAbilityBar(); }
+    // Auto-triggering abilities — Sprint/Dash keep their gesture triggers (see setupTouch/
+    // tryLunge), everything else fires on its own once picked.
+    if (gameMode === 'advanced') {
+        if (abilityLevels.tongue > 0 && performance.now() >= abilityCooldowns.tongue) {
+            activateTongue(abilityLevels.tongue);
+        }
+        if (abilityLevels.slowtime > 0 && performance.now() >= abilityCooldowns.slowtime) {
+            activateSlowTime(abilityLevels.slowtime);
+        }
+        if (abilityLevels.magnet > 0) {
+            const mr = ABILITY_CFG.magnet.radius[abilityLevels.magnet - 1];
+            const d  = Math.max(Math.abs(food.x - snake[0].x), Math.abs(food.y - snake[0].y));
+            if (d > 0 && d <= mr) collectFoodAt(food.x, food.y);
+        }
+        if (abilityLevels.sidekick > 0) {
+            if (babySnake.length === 0 || performance.now() >= babyUntil) activateBabySnake(abilityLevels.sidekick);
+            else tickBabySnake();
+        }
     }
 }
 
@@ -1691,15 +1665,32 @@ function spawnWallImpact(x, y) {
     }
 }
 
+// Armor's charge-consumed cue — a small cyan/white burst, distinct from the death explosion
+// (spawnWallImpact) so surviving a hit doesn't read as if the snake just died.
+function spawnArmorBreak(x, y) {
+    const n = 10;
+    const colors = ['#66ddff', '#aaeeff', '#ffffff'];
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n;
+        const speed = 1.5 + Math.random() * 2.5;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
+            life: 1, decay: 0.035 + Math.random() * 0.02,
+            size: 3 + Math.random() * 3.5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            kind: 'impact',
+        });
+    }
+}
+
 function die(reason = 'self', ix, iy) {
     lungeQueue = 0; holdBoost = false;
     gameState = 'over'; deathTime = performance.now();
     if (score > highScore) { highScore = score; updateScoreDisplay(); }
     saveProfileHighScore();
-    babySnake = []; tongue = null; slowUntil = 0; shopOpen = false;
+    babySnake = []; tongue = null; slowUntil = 0;
     fly = null; flyPrev = null; flyRegion = null; flyEntering = false; flyExiting = false; stopFlyBuzz();
-    document.getElementById('shop-overlay').classList.add('hidden');
-    if (gameMode === 'advanced') updateAbilityBar();
     if (reason === 'wall') { shakeMag = 9; spawnWallImpact(ix, iy); }
     else { shakeMag = 5; }
     stopMusic(); playGameOver(); vibrate([60,30,120]); updatePauseBtn();
@@ -1735,21 +1726,29 @@ function sfxLunge() {
     osc.start(); osc.stop(audioCtx.currentTime + 0.15);
 }
 
+// Dash — advanced mode only, and only once picked (see ABILITY_CFG.dash). Its own cooldown
+// (abilityCooldowns.dash) gates re-use; range is capped per level instead of always scanning
+// the whole board.
 function tryLunge() {
-    if (gameState !== 'running' || shopOpen || lungeQueue > 0) return;
+    if (gameState !== 'running' || levelUpOpen || lungeQueue > 0) return;
+    if (gameMode !== 'advanced' || abilityLevels.dash === 0) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.dash) return;
+    const level    = abilityLevels.dash;
+    const maxRange = Math.min(ABILITY_CFG.dash.maxRange[level-1], CELL_COUNT - 1);
     const ddx = dir==='right'?1: dir==='left'?-1:0;
     const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
     let steps = 0;
-    for (let i = 1; i < CELL_COUNT; i++) {
+    for (let i = 1; i <= maxRange; i++) {
         const tx = snake[0].x + ddx*i;
         const ty = snake[0].y + ddy*i;
         if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
         if (tx === food.x && ty === food.y) { steps = i; break; }
-        if (gameMode === 'advanced' && coins.some(c => c.x===tx && c.y===ty)) { steps = i; break; }
     }
     if (steps === 0) return;
     lungeQueue = steps;
-    lastTick = performance.now() - 35; // fire first step immediately
+    lastTick = now - 35; // fire first step immediately
+    abilityCooldowns.dash = now + ABILITY_CFG.dash.cooldowns[level-1];
     sfxLunge();
 }
 
@@ -1955,7 +1954,7 @@ function drawFly(cell) {
 // ── Loop ──────────────────────────────────────────────────────
 function loop(now) {
     requestAnimationFrame(loop);
-    if (gameState === 'running' && !shopOpen) {
+    if (gameState === 'running' && !levelUpOpen) {
         if (lungeQueue > 0) {
             if (now - lastTick >= 35) {
                 lastTick = now; curEffMs = 35; tick(); lungeQueue--;
@@ -1967,8 +1966,10 @@ function loop(now) {
             }
         } else {
             let effMs = tickMs;
-            if (holdBoost) effMs = Math.max(MIN_MS * 0.55, tickMs * 0.45);
-            else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;
+            if (holdBoost) {
+                const l = abilityLevels.sprint;
+                effMs = Math.max(MIN_MS * ABILITY_CFG.sprint.floorMult[l-1], tickMs * ABILITY_CFG.sprint.factor[l-1]);
+            } else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;
             // curEffMs (used for render interpolation) only latches when a tick actually
             // fires — recomputing it every frame let holdBoost/slowtime toggling mid-slide
             // retroactively shrink the interval and made the snake visibly jump forward.
@@ -1985,7 +1986,7 @@ function loop(now) {
         if (t >= 1) { enterSlideX = 0; gameState = 'running'; lastTick = now; startMusic(); }
     }
     // Fly movement + despawn (independent of snake tick rate)
-    if (fly && gameState === 'running' && !shopOpen) {
+    if (fly && gameState === 'running' && !levelUpOpen) {
         if (flyExiting) {
             if (now - flyExitStart >= FLY_EXIT_DUR) {
                 stopFlyBuzz(); fly = null; flyRegion = null; flyExiting = false;
@@ -2039,10 +2040,8 @@ function draw() {
     drawFood(cell);
     drawFly(cell);
     if (gameMode === 'advanced') {
-        drawCoins(cell);
-        if (shopBlock) drawShopBlock(cell);
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
-        if (babySnake.length > 0 && performance.now() < babyUntil) drawBabySnake(cell);
+        if (babySnake.length > 0) drawBabySnake(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
@@ -2391,31 +2390,6 @@ function drawWin(size, cell) {
     ctx.fillStyle='#aaa'; ctx.font=`${Math.floor(cell*0.62)}px monospace`;
     ctx.fillText('Perfect run!', size/2, size*0.59);
     ctx.fillStyle='#555'; ctx.fillText('Swipe to play again', size/2, size*0.68);
-}
-
-function drawCoins(cell) {
-    const r = cell/2 - 2;
-    for (const c of coins) {
-        const cx = c.x*cell+cell/2, cy = c.y*cell+cell/2;
-        ctx.fillStyle = 'rgba(255,220,50,0.12)';
-        ctx.beginPath(); ctx.arc(cx, cy, r+3, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#ffdd33';
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.28)';
-        ctx.beginPath(); ctx.arc(cx-r*0.25, cy-r*0.3, r*0.3, 0, Math.PI*2); ctx.fill();
-    }
-}
-
-function drawShopBlock(cell) {
-    const x=shopBlock.x*cell+1, y=shopBlock.y*cell+1, s=cell-2;
-    ctx.fillStyle='#1a1000';
-    rr(x,y,s,s,Math.max(2,cell*0.18)); ctx.fill();
-    ctx.strokeStyle='#ffaa22'; ctx.lineWidth=1.5;
-    rr(x,y,s,s,Math.max(2,cell*0.18)); ctx.stroke();
-    ctx.fillStyle='#ffaa22';
-    ctx.font=`bold ${Math.max(8,Math.floor(cell*0.55))}px monospace`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('$', shopBlock.x*cell+cell/2, shopBlock.y*cell+cell/2);
 }
 
 function drawTongue(cell) {
