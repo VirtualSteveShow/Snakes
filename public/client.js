@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.66';
+const VERSION = 'v1.67';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -2454,7 +2454,7 @@ function spawnDebris(cell) {
             y: head.y*cell + cell/2 + (Math.random()-0.5)*cell*0.4,
             vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - cell*0.04,
             life: 1, decay: 0.024 + Math.random()*0.018,
-            size: cell*(0.22 + Math.random()*0.22),
+            size: cell*(0.22 + Math.random()*0.22) * grassLenScale,
             color: GRASS_FLECK_COLORS[Math.floor(Math.random()*GRASS_FLECK_COLORS.length)],
             shape: 'blade',
             rot: Math.random() * Math.PI * 2,
@@ -2482,16 +2482,27 @@ function drawParticles(kind) {
         ctx.globalAlpha = p.life * 0.85;
         if (p.shape === 'blade') {
             // A short flying grass-blade sliver, spinning as it flies off — reads as a
-            // clipping of the grass being disturbed rather than generic dust.
+            // clipping of the grass being disturbed rather than generic dust. Sized and
+            // outlined with the same grassWidthScale/grassOutlineScale sliders as the field
+            // itself (grassLenScale is baked into p.size at spawn time) so it's one set of
+            // debug dials for both, and so it actually reads against the field instead of
+            // blending into it as a bare, unoutlined line.
             ctx.save();
             ctx.translate(p.x, p.y);
             ctx.rotate(p.rot);
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = Math.max(1, p.size * 0.32);
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(-p.size*0.5, 0);
             ctx.lineTo(p.size*0.5, 0);
+            const fillWidth = Math.max(1.5, p.size * 0.32 * grassWidthScale);
+            const outlinePad = grassOutlineScale > 0 ? Math.max(1, p.size * 0.16 * grassOutlineScale) : 0;
+            if (outlinePad > 0) {
+                ctx.strokeStyle = 'rgba(15,15,15,0.88)';
+                ctx.lineWidth = fillWidth + outlinePad;
+                ctx.stroke();
+            }
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = fillWidth;
             ctx.stroke();
             ctx.restore();
         } else {
