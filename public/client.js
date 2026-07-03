@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.65';
+const VERSION = 'v1.66';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -373,7 +373,6 @@ function buildGrassField(cols, rows) {
                     transitioning: false, // in grassTransitioning list?
                     wig: 0, wigT: 0, wiggling: false, // decaying flutter kick, and in grassWiggling list?
                     wigPhase: Math.random() * 6.28,
-                    overlapEdge: Math.random() < 0.35, // eligible to be redrawn on top of the snake, see drawGrassOverlay
                 });
             }
         }
@@ -465,8 +464,7 @@ function updateGrassWiggle() {
     }
 }
 
-// Builds one blade's curve into the given Path2D — shared by the main field pass and the
-// overlay pass (see drawGrassOverlay) so the per-blade math only lives in one place.
+// Builds one blade's curve into the given Path2D.
 function addBladePath(path, b, cell) {
     const baseX = (b.cx + b.ox) * cell;
     const baseY = (b.cy + b.oy) * cell;
@@ -506,7 +504,7 @@ function addBladePath(path, b, cell) {
 }
 
 // Strokes one Path2D per variant — a wide black outline pass, then the colored fill pass on
-// top (the cartoon-outline trick). Shared by the main field pass and the overlay pass.
+// top (the cartoon-outline trick).
 function strokeVariantPaths(paths, cell) {
     for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
         const variant = GRASS_VARIANTS[vi];
@@ -537,44 +535,6 @@ function drawGrassField(cell) {
     ctx.restore();
 }
 
-// A subset of blades near the snake (marked overlapEdge at build time, ~35% of them) are
-// redrawn a second time, after the snake, so tall grass at the fringe of the disturbed strip
-// pokes over the body's edge instead of always sitting fully behind it — reads as the snake
-// moving through grass rather than grass simply getting out of its way. Only mostly-upright
-// blades qualify; ones already flattened under the body stay behind it like before. Scoped to
-// the snake's current cells plus a 1-cell ring via the byCell map, so cost tracks snake
-// length, not total field size.
-function drawGrassOverlay(cell) {
-    if (!grassField || !snake.length) return;
-    const paths = GRASS_VARIANTS.map(() => new Path2D());
-    const seen = new Set();
-    let any = false;
-    for (const seg of snake) {
-        for (let oy = -1; oy <= 1; oy++) {
-            for (let ox = -1; ox <= 1; ox++) {
-                const cx = seg.x + ox, cy = seg.y + oy;
-                if (cx < 0 || cy < 0 || cx >= grassField.cols || cy >= grassField.rows) continue;
-                const key = cy * grassField.cols + cx;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                const list = grassField.byCell.get(key);
-                if (!list) continue;
-                for (const b of list) {
-                    if (!b.overlapEdge) continue;
-                    if (Math.hypot(b.bx, b.by) > GRASS_PUSH * 0.35) continue;
-                    addBladePath(paths[b.variant], b, cell);
-                    any = true;
-                }
-            }
-        }
-    }
-    if (!any) return;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    strokeVariantPaths(paths, cell);
-    ctx.restore();
-}
 let handedness      = localStorage.getItem('snake_hand') || 'right';
 let lungePauseUntil = 0;
 let lungeQueue      = 0;
@@ -603,6 +563,7 @@ let flyBuzzGain   = null;
 const FOOD_TYPES = ['apple', 'strawberry', 'watermelon', 'cherry', 'grape'];
 let foodType = 'apple';
 const DEBRIS_COLORS = ['#c8a050','#d4b860','#e8d090','#a06828','#b89848','#8a6828'];
+const GRASS_FLECK_COLORS = ['#2f7a1a','#3f9722','#5ab52f','#7bcf4a'];
 const DEBRIS_ANGLE  = { right: Math.PI, left: 0, up: Math.PI/2, down: -Math.PI/2 };
 
 // ── Advanced mode state ───────────────────────────────────────
@@ -1456,6 +1417,7 @@ function init() {
     setInterval(() => { if (gameMode === 'advanced') updateAbilityBar(); }, 200);
 
     buildBackground(CELL_COUNT, CELL_COUNT);
+    buildGrassField(CELL_COUNT, CELL_COUNT); // so the title screen isn't bare before the first game starts
     updateScoreDisplay();
     resize();
     window.addEventListener('resize', () => { resize(); if (gameState !== 'running') draw(); });
@@ -2068,7 +2030,6 @@ function draw() {
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
-    drawGrassOverlay(cell);
     drawTongueFlick(cell);
     if (gameState === 'entering') ctx.restore();
     drawParticles('impact');
@@ -2464,19 +2425,43 @@ function drawBabySnake(cell) {
     }
 }
 
+// Dirt patches kick up dust squares; everywhere else (i.e. grass) kicks up little flying
+// blade-shaped clippings instead — reads as the snake actually disturbing the grass it's
+// gliding through, rather than a generic dust trail regardless of what's underfoot.
 function spawnDebris(cell) {
     if (!snake.length) return;
-    const head  = snake[0];
-    const angle = DEBRIS_ANGLE[dir] + (Math.random()-0.5)*1.4;
-    const speed = cell * (0.05 + Math.random() * 0.08);
-    particles.push({
-        x: head.x*cell + cell/2, y: head.y*cell + cell/2,
-        vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - cell*0.02,
-        life: 1, decay: 0.030 + Math.random()*0.025,
-        size: cell*(0.18 + Math.random()*0.20),
-        color: DEBRIS_COLORS[Math.floor(Math.random()*DEBRIS_COLORS.length)],
-        kind: 'debris', // drawn on the ground layer, under the snake (see draw())
-    });
+    const head = snake[0];
+    if (onDirt(head.x + 0.5, head.y + 0.5)) {
+        const angle = DEBRIS_ANGLE[dir] + (Math.random()-0.5)*1.4;
+        const speed = cell * (0.05 + Math.random() * 0.08);
+        particles.push({
+            x: head.x*cell + cell/2, y: head.y*cell + cell/2,
+            vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - cell*0.02,
+            life: 1, decay: 0.030 + Math.random()*0.025,
+            size: cell*(0.18 + Math.random()*0.20),
+            color: DEBRIS_COLORS[Math.floor(Math.random()*DEBRIS_COLORS.length)],
+            shape: 'square',
+            kind: 'debris', // drawn on the ground layer, under the snake (see draw())
+        });
+        return;
+    }
+    const n = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+        const angle = DEBRIS_ANGLE[dir] + (Math.random()-0.5)*1.9;
+        const speed = cell * (0.06 + Math.random() * 0.11);
+        particles.push({
+            x: head.x*cell + cell/2 + (Math.random()-0.5)*cell*0.4,
+            y: head.y*cell + cell/2 + (Math.random()-0.5)*cell*0.4,
+            vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - cell*0.04,
+            life: 1, decay: 0.024 + Math.random()*0.018,
+            size: cell*(0.22 + Math.random()*0.22),
+            color: GRASS_FLECK_COLORS[Math.floor(Math.random()*GRASS_FLECK_COLORS.length)],
+            shape: 'blade',
+            rot: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random()-0.5) * 0.5,
+            kind: 'debris', // drawn on the ground layer, under the snake (see draw())
+        });
+    }
 }
 
 // Physics only, once per frame regardless of how many kinds get drawn — drawParticles()
@@ -2486,6 +2471,7 @@ function updateParticles() {
     for (let i = particles.length-1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life -= p.decay;
+        if (p.rotSpeed) p.rot += p.rotSpeed;
         if (p.life <= 0) particles.splice(i, 1);
     }
 }
@@ -2494,8 +2480,24 @@ function drawParticles(kind) {
     for (const p of particles) {
         if (p.kind !== kind) continue;
         ctx.globalAlpha = p.life * 0.85;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+        if (p.shape === 'blade') {
+            // A short flying grass-blade sliver, spinning as it flies off — reads as a
+            // clipping of the grass being disturbed rather than generic dust.
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = Math.max(1, p.size * 0.32);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-p.size*0.5, 0);
+            ctx.lineTo(p.size*0.5, 0);
+            ctx.stroke();
+            ctx.restore();
+        } else {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+        }
     }
     ctx.globalAlpha = 1;
 }
