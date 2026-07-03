@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.55';
+const VERSION = 'v1.56';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1430,12 +1430,6 @@ function tick() {
     }
     if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) { die('self'); return; }
 
-    {
-        const gdx = dir==='right'?1: dir==='left'?-1:0;
-        const gdy = dir==='down' ?1: dir==='up'  ?-1:0;
-        bendGrassAt(nx, ny, gdx, gdy);
-    }
-
     // Digesting food travels toward the tail as a physical piece of the body — every tick
     // shifts each body identity back one array slot (a new head gets prepended), so bump
     // segIndex here, before that shift happens, then add this tick's own swallow at 0 below.
@@ -1486,6 +1480,17 @@ function tick() {
         if (!fly && Math.random() < FLY_SPAWN_CHANCE) spawnFly();
     } else if (!flyEaten) { snake.pop(); }
     digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
+
+    // The whole body disturbs grass as it glides through, not just the leading edge —
+    // each segment's own movement this tick (its prevSnake position to its new one, same
+    // pairing the render interpolation uses) bends the grass under it. A freshly-grown
+    // tail segment has no prevSnake counterpart and didn't move, so it's skipped.
+    for (let i = 0; i < snake.length; i++) {
+        const p = i < prevSnake.length ? prevSnake[i] : snake[i];
+        const s = snake[i];
+        const gdx = s.x - p.x, gdy = s.y - p.y;
+        if (gdx || gdy) bendGrassAt(s.x, s.y, gdx, gdy);
+    }
 
     if (gameMode === 'advanced' && babySnake.length > 0) {
         if (performance.now() < babyUntil) tickBabySnake();
@@ -2283,7 +2288,9 @@ function setHandedness(h) {
 }
 
 // Swallowed food renders as a shrinking bulge riding along renderSnake toward the tail —
-// big and round right behind the head, faded to almost nothing by the time it reaches the end.
+// same color as the body (this is skin stretching over something, not a colored blob),
+// wide enough near the head to actually poke out past the body's normal silhouette, then
+// shrinking back under it well before it reaches the tail.
 function drawDigestion(cell, bodyW) {
     if (!digestingFood.length || !renderSnake.length) return;
     const hw = cell / 2;
@@ -2293,11 +2300,16 @@ function drawDigestion(cell, bodyW) {
         if (b.segIndex < 0 || b.segIndex >= renderSnake.length) continue;
         const seg  = renderSnake[b.segIndex];
         const frac = 1 - b.segIndex / span; // 1 near the head, 0 near the tail
-        const r    = bodyW / 2 * (0.12 + 0.78 * frac);
-        ctx.globalAlpha = 0.55 + 0.35 * frac;
-        ctx.fillStyle = '#e0453f';
+        const r    = bodyW / 2 * (0.18 + 1.15 * frac);
+        const x = seg.x*cell+hw, y = seg.y*cell+hw;
+        ctx.fillStyle = '#278a27'; // same green as the body — a shape, not a color
         ctx.beginPath();
-        ctx.ellipse(seg.x*cell+hw, seg.y*cell+hw, r, r * 0.88, 0, 0, Math.PI*2);
+        ctx.ellipse(x, y, r, r * 0.88, 0, 0, Math.PI*2);
+        ctx.fill();
+        // faint highlight for a bit of roundness, same treatment as the head's
+        ctx.fillStyle = 'rgba(140,255,100,0.16)';
+        ctx.beginPath();
+        ctx.ellipse(x, y - r*0.15, r*0.55, r*0.5, 0, 0, Math.PI*2);
         ctx.fill();
     }
     ctx.restore();
