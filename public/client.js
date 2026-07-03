@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.62';
+const VERSION = 'v1.63';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -245,6 +245,9 @@ function drawStone(bctx, x, y, r) {
     bctx.fillStyle = 'rgba(0,0,0,0.16)'; bctx.fill();
     bctx.beginPath(); bctx.ellipse(x, y, r * 0.9, r * 0.75, rot, 0, Math.PI * 2);
     bctx.fillStyle = '#a89a86'; bctx.fill();
+    bctx.strokeStyle = 'rgba(25,18,12,0.75)';
+    bctx.lineWidth = Math.max(1, r * 0.16);
+    bctx.stroke();
     bctx.beginPath(); bctx.ellipse(x - r * 0.22, y - r * 0.28, r * 0.34, r * 0.26, rot, 0, Math.PI * 2);
     bctx.fillStyle = 'rgba(255,255,255,0.35)'; bctx.fill();
 }
@@ -1877,12 +1880,23 @@ function drawFly(cell) {
     ctx.ellipse(fx + r*1.05, fy + wingLift, r*1.15, r*0.62, 0.28, 0, Math.PI*2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(10,10,20,0.5)';
+    ctx.lineWidth = Math.max(1, r*0.09);
+    ctx.beginPath();
+    ctx.ellipse(fx - r*1.05, fy + wingLift, r*1.15, r*0.62, -0.28, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(fx + r*1.05, fy + wingLift, r*1.15, r*0.62, 0.28, 0, Math.PI*2);
+    ctx.stroke();
 
     // Body
     ctx.fillStyle = '#1e1e1e';
     ctx.beginPath();
     ctx.ellipse(fx, fy, r*0.72, r*1.15, 0, 0, Math.PI*2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = Math.max(1, r*0.14);
+    ctx.stroke();
 
     // Abdomen bands
     ctx.strokeStyle = '#484848';
@@ -2082,6 +2096,8 @@ function drawApple(fx, fy, r) {
     ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,0.33)';
     ctx.beginPath(); ctx.arc(fx-r*0.28, fy-r*0.3, r*0.30, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(15,5,0,0.85)'; ctx.lineWidth = Math.max(1.5, r*0.12);
+    ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.stroke();
 }
 
 function drawStrawberry(fx, fy, r) {
@@ -2103,6 +2119,8 @@ function drawStrawberry(fx, fy, r) {
     }
     ctx.fillStyle = 'rgba(255,255,255,0.28)';
     ctx.beginPath(); ctx.arc(fx-r*0.26, fy-r*0.3, r*0.27, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(20,0,5,0.85)'; ctx.lineWidth = Math.max(1.5, r*0.12);
+    ctx.beginPath(); ctx.ellipse(fx, fy+r*0.05, r, r, 0, 0, Math.PI*2); ctx.stroke();
 }
 
 function drawWatermelon(fx, fy, r) {
@@ -2126,6 +2144,8 @@ function drawWatermelon(fx, fy, r) {
     }
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.beginPath(); ctx.arc(fx-r*0.22, fy-r*0.26, r*0.25, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(5,20,5,0.85)'; ctx.lineWidth = Math.max(1.5, r*0.12);
+    ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.stroke();
 }
 
 function drawCherry(fx, fy, r) {
@@ -2143,6 +2163,8 @@ function drawCherry(fx, fy, r) {
         ctx.beginPath(); ctx.arc(cx, by, cr, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.beginPath(); ctx.arc(cx-cr*0.28, by-cr*0.28, cr*0.28, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(20,0,0,0.85)'; ctx.lineWidth = Math.max(1.5, cr*0.16);
+        ctx.beginPath(); ctx.arc(cx, by, cr, 0, Math.PI*2); ctx.stroke();
     }
 }
 
@@ -2159,6 +2181,8 @@ function drawGrape(fx, fy, r) {
     ctx.beginPath(); ctx.moveTo(fx, fy-r); ctx.lineTo(fx+r*0.18, fy-r-r*0.38); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.30)';
     ctx.beginPath(); ctx.arc(fx-r*0.28, fy-r*0.28, r*0.30, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(15,0,25,0.85)'; ctx.lineWidth = Math.max(1.5, r*0.12);
+    ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.stroke();
 }
 
 function drawTongueFlick(cell) {
@@ -2466,9 +2490,10 @@ function drawDigestion(cell, bodyW) {
         ctx.beginPath();
         ctx.ellipse(x, y, r, r * 0.88, 0, 0, Math.PI*2);
         ctx.fill();
-        // dark outline gives the bulge an edge to read against the body fill
-        ctx.strokeStyle = 'rgba(10,55,10,0.40)';
-        ctx.lineWidth = Math.max(1, cell * 0.05);
+        // black outline gives the bulge a firm edge to read against the body fill, matching
+        // the cartoon-outline style used elsewhere (grass, snake, fruit, stones, fly)
+        ctx.strokeStyle = 'rgba(8,8,8,0.85)';
+        ctx.lineWidth = Math.max(1.5, cell * 0.06);
         ctx.stroke();
         // highlight for a bit of roundness, same treatment as the head's
         ctx.fillStyle = 'rgba(140,255,100,0.20)';
