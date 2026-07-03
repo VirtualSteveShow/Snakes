@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.70';
+const VERSION = 'v1.71';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -588,7 +588,7 @@ let babySnake      = [];       // {x,y}[] sidekick helper segments
 let babyUntil      = 0;        // performance.now() when the sidekick's current cycle ends (auto-respawns)
 let slowUntil      = 0;        // performance.now() when slow-time expires
 
-let abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0 }; // 0=locked, 1/2/3
+let abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0 }; // 0=locked, 1/2/3
 let abilityCooldowns = { dash:0, tongue:0, slowtime:0 }; // ready-at timestamp — only the 3 cooldown-based abilities need this
 
 function xpForLevel(l) { return 5 + (l - 1) * 3; }
@@ -632,6 +632,12 @@ const ABILITY_CFG = {
         name: 'MAGNET',
         descs: ['Auto-collect food within 1 tile', 'Auto-collect within 2 tiles', 'Auto-collect within 3 tiles'],
         radius: [1, 2, 3],
+    },
+    ring: {
+        name: 'WEIGHTED RING',
+        descs: ['Slower, but +25% XP', 'Slower still, +50% XP', 'Slowest, +75% XP'],
+        slowFactor: [1.08, 1.15, 1.22], // multiplies every tick interval — bigger = slower
+        xpMult:     [1.25, 1.50, 1.75],
     },
 };
 const ABILITY_POOL = Object.keys(ABILITY_CFG);
@@ -1127,6 +1133,7 @@ function updateAdvancedHUD() {
 
 // ── XP / level-up ─────────────────────────────────────────────
 function gainXP(n) {
+    if (abilityLevels.ring > 0) n *= ABILITY_CFG.ring.xpMult[abilityLevels.ring - 1];
     xp += n;
     while (xp >= xpForLevel(xpLevel)) {
         xp -= xpForLevel(xpLevel);
@@ -1526,7 +1533,7 @@ function startGame() {
     enterStart  = performance.now();
 
     xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0;
-    abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0 };
+    abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0 };
     abilityCooldowns = { dash:0, tongue:0, slowtime:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
     particles = []; scorePops = []; shakeMag = 0;
@@ -1726,6 +1733,32 @@ function sfxLunge() {
     osc.start(); osc.stop(audioCtx.currentTime + 0.15);
 }
 
+// How many steps a dash would take to reach food right now (0 = no target in range) — shared
+// by tryLunge() (actually triggers it) and dashReady() (just checks, for the on-screen ring
+// indicator letting the player know a tap would connect before they commit to one).
+function dashTargetSteps() {
+    if (gameMode !== 'advanced' || abilityLevels.dash === 0 || !snake.length) return 0;
+    const level    = abilityLevels.dash;
+    const maxRange = Math.min(ABILITY_CFG.dash.maxRange[level-1], CELL_COUNT - 1);
+    const ddx = dir==='right'?1: dir==='left'?-1:0;
+    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
+    for (let i = 1; i <= maxRange; i++) {
+        const tx = snake[0].x + ddx*i;
+        const ty = snake[0].y + ddy*i;
+        if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
+        if (tx === food.x && ty === food.y) return i;
+    }
+    return 0;
+}
+
+// True when a Dash tap right now would actually connect — off cooldown AND food within this
+// level's range along the current heading. Drives the pulsing ready-ring around the head.
+function dashReady() {
+    return gameMode === 'advanced' && abilityLevels.dash > 0
+        && performance.now() >= abilityCooldowns.dash
+        && dashTargetSteps() > 0;
+}
+
 // Dash — advanced mode only, and only once picked (see ABILITY_CFG.dash). Its own cooldown
 // (abilityCooldowns.dash) gates re-use; range is capped per level instead of always scanning
 // the whole board.
@@ -1734,21 +1767,11 @@ function tryLunge() {
     if (gameMode !== 'advanced' || abilityLevels.dash === 0) return;
     const now = performance.now();
     if (now < abilityCooldowns.dash) return;
-    const level    = abilityLevels.dash;
-    const maxRange = Math.min(ABILITY_CFG.dash.maxRange[level-1], CELL_COUNT - 1);
-    const ddx = dir==='right'?1: dir==='left'?-1:0;
-    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
-    let steps = 0;
-    for (let i = 1; i <= maxRange; i++) {
-        const tx = snake[0].x + ddx*i;
-        const ty = snake[0].y + ddy*i;
-        if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
-        if (tx === food.x && ty === food.y) { steps = i; break; }
-    }
+    const steps = dashTargetSteps();
     if (steps === 0) return;
     lungeQueue = steps;
     lastTick = now - 35; // fire first step immediately
-    abilityCooldowns.dash = now + ABILITY_CFG.dash.cooldowns[level-1];
+    abilityCooldowns.dash = now + ABILITY_CFG.dash.cooldowns[abilityLevels.dash-1];
     sfxLunge();
 }
 
@@ -1970,6 +1993,11 @@ function loop(now) {
                 const l = abilityLevels.sprint;
                 effMs = Math.max(MIN_MS * ABILITY_CFG.sprint.floorMult[l-1], tickMs * ABILITY_CFG.sprint.factor[l-1]);
             } else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;
+            // Weighted Ring — a flat drag on top of whatever speed state is active (base,
+            // Sprint, or Slow Time), traded for bonus XP (see gainXP()).
+            if (gameMode === 'advanced' && abilityLevels.ring > 0) {
+                effMs *= ABILITY_CFG.ring.slowFactor[abilityLevels.ring - 1];
+            }
             // curEffMs (used for render interpolation) only latches when a tick actually
             // fires — recomputing it every frame let holdBoost/slowtime toggling mid-slide
             // retroactively shrink the interval and made the snake visibly jump forward.
@@ -2042,6 +2070,7 @@ function draw() {
     if (gameMode === 'advanced') {
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
+        if (dashReady()) drawDashReady(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
@@ -2390,6 +2419,22 @@ function drawWin(size, cell) {
     ctx.fillStyle='#aaa'; ctx.font=`${Math.floor(cell*0.62)}px monospace`;
     ctx.fillText('Perfect run!', size/2, size*0.59);
     ctx.fillStyle='#555'; ctx.fillText('Swipe to play again', size/2, size*0.68);
+}
+
+// Pulsing gold ring around the head while a Dash tap right now would actually connect —
+// otherwise there's no way to tell whether a tap will do anything before committing to it.
+function drawDashReady(cell) {
+    if (!renderSnake.length) return;
+    const hw = cell / 2;
+    const hx = renderSnake[0].x*cell+hw, hy = renderSnake[0].y*cell+hw;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,220,60,${0.55 + 0.35*pulse})`;
+    ctx.lineWidth = Math.max(1.5, cell * 0.08);
+    ctx.beginPath();
+    ctx.arc(hx, hy, cell*0.85 + pulse*cell*0.12, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
 }
 
 function drawTongue(cell) {
