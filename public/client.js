@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.57';
+const VERSION = 'v1.58';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -215,6 +215,30 @@ function drawDirtPatches(bctx, patches) {
     bctx.fill();
 }
 
+// Scatters small dirt-colored dabs just past each patch's edge, fading out in size and
+// opacity with distance — breaks the blob's fill from one clean boundary into a ragged,
+// randomly-thinning transition, so the soil color already peeking through the grass blends
+// into the dirt patch instead of the patch reading as a shape dropped on top of the grass.
+function drawDirtFringe(bctx, patches) {
+    for (const p of patches) {
+        const n = 10 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < n; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const rad = p.R * (0.85 + Math.random() * 0.55);
+            const x = p.cx + Math.cos(ang) * rad;
+            const y = p.cy + Math.sin(ang) * rad;
+            const size = p.R * (0.10 + Math.random() * 0.16);
+            const reach = (rad - p.R * 0.85) / (p.R * 0.55); // 0 at the patch edge, 1 at the fringe's outer limit
+            const alpha = 0.5 - reach * 0.45;
+            if (alpha <= 0.03) continue;
+            bctx.beginPath();
+            addBlobSubpath(bctx, x, y, size, 7 + Math.floor(Math.random() * 3), 0.6);
+            bctx.fillStyle = `rgba(140,104,52,${alpha.toFixed(3)})`;
+            bctx.fill();
+        }
+    }
+}
+
 function drawStone(bctx, x, y, r) {
     const rot = Math.random() * Math.PI;
     bctx.beginPath(); bctx.ellipse(x, y + r * 0.18, r * 0.95, r * 0.8, rot, 0, Math.PI * 2);
@@ -260,7 +284,9 @@ function buildBackground(cols, rows) {
         const R  = 1.1 + Math.random() * 1.6;
         dirtPatches.push({ cx, cy, R });
     }
-    drawDirtPatches(bctx, dirtPatches.map(p => ({ cx: p.cx * BG_UNIT, cy: p.cy * BG_UNIT, R: p.R * BG_UNIT })));
+    const bgPatches = dirtPatches.map(p => ({ cx: p.cx * BG_UNIT, cy: p.cy * BG_UNIT, R: p.R * BG_UNIT }));
+    drawDirtPatches(bctx, bgPatches);
+    drawDirtFringe(bctx, bgPatches);
 
     // Stones — a light scatter everywhere, plus denser clusters in/around dirt patches
     for (let i = 0; i < cols * rows * 0.3; i++) {
@@ -299,7 +325,11 @@ const GRASS_VARIANTS = [
 
 function onDirt(x, y) {
     for (const p of dirtPatches) {
-        if (Math.hypot(x - p.cx, y - p.cy) < p.R * 0.88) return true;
+        // Jittered cutoff (called once per candidate blade at build time) instead of a fixed
+        // radius — keeps the bare-ground edge ragged rather than a perfect circle, matching
+        // the speckled fringe baked into the background.
+        const jitter = (Math.random() - 0.5) * 0.5;
+        if (Math.hypot(x - p.cx, y - p.cy) < p.R * 0.88 + jitter) return true;
     }
     return false;
 }
