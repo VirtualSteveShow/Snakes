@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.71';
+const VERSION = 'v1.72';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -138,6 +138,12 @@ let snake       = [];
 let dir         = 'right';
 let nextDir     = 'right';
 let food        = { x: 5, y: 5 };
+// Sidekick's dedicated target — without a second pickup on the board the sidekick has
+// nothing to do that the main snake wasn't already about to eat itself. Spawned once Sidekick
+// is first picked (see pickAbility), collectible by anyone (main snake, Sidekick, or Magnet).
+let bonusFood         = null;
+let bonusFoodType     = 'apple';
+let bonusFoodSpawnTime = 0;
 let gameState   = 'start';
 let lastTick    = 0;
 let tickMs      = BASE_MS;
@@ -1168,7 +1174,7 @@ function showNextLevelUp() {
 function pickAbility(key) {
     abilityLevels[key]++;
     const level = abilityLevels[key];
-    if (key === 'sidekick' && level === 1) activateBabySnake(level);
+    if (key === 'sidekick' && level === 1) { activateBabySnake(level); spawnBonusFood(); }
     if (key === 'armor') armorCharges = ABILITY_CFG.armor.charges[level - 1];
     document.getElementById('levelup-overlay').classList.add('hidden');
     levelUpOpen = false;
@@ -1196,12 +1202,13 @@ function renderLevelUp() {
 // ── Ability effects ───────────────────────────────────────────
 // Shared by the main snake (via tick()), Tongue, Sidekick, and Magnet — grants the same
 // reward as eating normally without requiring the main snake's body to occupy the cell.
-function collectFoodAt(x, y) {
-    if (x !== food.x || y !== food.y) return false;
+// foodObj/respawnFn let this work against either the main food or bonusFood.
+function collectFoodAt(x, y, foodObj, respawnFn) {
+    if (!foodObj || x !== foodObj.x || y !== foodObj.y) return false;
     score += 1; if (score > highScore) highScore = score;
     updateScoreDisplay(); sfxCoin(); vibrate(15);
     if (gameMode === 'advanced') gainXP(1);
-    spawnFood();
+    respawnFn();
     return true;
 }
 
@@ -1214,7 +1221,14 @@ function activateTongue(level) {
         const tx = snake[0].x + dx*i, ty = snake[0].y + dy*i;
         if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
         if (tx === food.x && ty === food.y) {
-            collectFoodAt(tx, ty);
+            collectFoodAt(tx, ty, food, spawnFood);
+            tongue = { ex: tx, ey: ty };
+            tongueVisUntil = performance.now() + 380;
+            abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
+            return true;
+        }
+        if (bonusFood && tx === bonusFood.x && ty === bonusFood.y) {
+            collectFoodAt(tx, ty, bonusFood, spawnBonusFood);
             tongue = { ex: tx, ey: ty };
             tongueVisUntil = performance.now() + 380;
             abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
@@ -1233,6 +1247,7 @@ function activateBabySnake(level) {
     babyUntil = performance.now() + ABILITY_CFG.sidekick.durations[level - 1];
     const occ = new Set(snake.map(s => `${s.x},${s.y}`));
     occ.add(`${food.x},${food.y}`);
+    if (bonusFood) occ.add(`${bonusFood.x},${bonusFood.y}`);
     const free = [];
     for (let x = 0; x < CELL_COUNT; x++)
         for (let y = 0; y < CELL_COUNT; y++)
@@ -1242,14 +1257,17 @@ function activateBabySnake(level) {
     babySnake = [free[si], free[si+1], free[si+2]];
 }
 
+// Chases bonusFood specifically, not the main food — without its own dedicated target the
+// sidekick was just racing the player to the one food item on the board, which the player
+// almost always reached first, making it pointless.
 function tickBabySnake() {
-    if (!babySnake.length) return;
+    if (!babySnake.length || !bonusFood) return;
     const head = babySnake[0];
     const moves = [];
-    if (food.x > head.x) moves.push({ dx:1, dy:0 });
-    else if (food.x < head.x) moves.push({ dx:-1, dy:0 });
-    if (food.y > head.y) moves.push({ dx:0, dy:1 });
-    else if (food.y < head.y) moves.push({ dx:0, dy:-1 });
+    if (bonusFood.x > head.x) moves.push({ dx:1, dy:0 });
+    else if (bonusFood.x < head.x) moves.push({ dx:-1, dy:0 });
+    if (bonusFood.y > head.y) moves.push({ dx:0, dy:1 });
+    else if (bonusFood.y < head.y) moves.push({ dx:0, dy:-1 });
     const fallback = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
     for (const mv of [...moves, ...fallback]) {
         const nx = head.x + mv.dx, ny = head.y + mv.dy;
@@ -1257,7 +1275,7 @@ function tickBabySnake() {
         if (babySnake.some(s => s.x===nx && s.y===ny)) continue;
         if (snake.some(s => s.x===nx && s.y===ny)) continue;
         babySnake.unshift({ x:nx, y:ny }); babySnake.pop();
-        collectFoodAt(nx, ny);
+        collectFoodAt(nx, ny, bonusFood, spawnBonusFood);
         break;
     }
 }
@@ -1536,6 +1554,7 @@ function startGame() {
     abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0 };
     abilityCooldowns = { dash:0, tongue:0, slowtime:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
+    bonusFood = null;
     particles = []; scorePops = []; shakeMag = 0;
     document.getElementById('levelup-overlay').classList.add('hidden');
 
@@ -1556,6 +1575,20 @@ function spawnFood() {
     food = free[Math.floor(Math.random() * free.length)];
     foodType = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
     foodSpawnTime = performance.now();
+}
+
+function spawnBonusFood() {
+    const occ = new Set(snake.map(s => `${s.x},${s.y}`));
+    occ.add(`${food.x},${food.y}`);
+    babySnake.forEach(s => occ.add(`${s.x},${s.y}`));
+    const free = [];
+    for (let x = 0; x < CELL_COUNT; x++)
+        for (let y = 0; y < CELL_COUNT; y++)
+            if (!occ.has(`${x},${y}`)) free.push({ x, y });
+    if (!free.length) return;
+    bonusFood = free[Math.floor(Math.random() * free.length)];
+    bonusFoodType = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
+    bonusFoodSpawnTime = performance.now();
 }
 
 function tick() {
@@ -1593,6 +1626,10 @@ function tick() {
     const eatX = food.x * cell + cell/2, eatY = food.y * cell + cell/2;
     snake.unshift({ x:nx, y:ny });
     spawnDebris(cell);
+
+    // The main snake can grab the sidekick's bonus fruit too if it happens to path over it —
+    // it doesn't grow you (that's what the main food is for), just score+XP, same as Magnet.
+    if (gameMode === 'advanced' && bonusFood) collectFoodAt(nx, ny, bonusFood, spawnBonusFood);
 
     // Fly catch — grows snake, +FLY_POINTS
     let flyEaten = false;
@@ -1646,7 +1683,11 @@ function tick() {
         if (abilityLevels.magnet > 0) {
             const mr = ABILITY_CFG.magnet.radius[abilityLevels.magnet - 1];
             const d  = Math.max(Math.abs(food.x - snake[0].x), Math.abs(food.y - snake[0].y));
-            if (d > 0 && d <= mr) collectFoodAt(food.x, food.y);
+            if (d > 0 && d <= mr) collectFoodAt(food.x, food.y, food, spawnFood);
+            if (bonusFood) {
+                const d2 = Math.max(Math.abs(bonusFood.x - snake[0].x), Math.abs(bonusFood.y - snake[0].y));
+                if (d2 > 0 && d2 <= mr) collectFoodAt(bonusFood.x, bonusFood.y, bonusFood, spawnBonusFood);
+            }
         }
         if (abilityLevels.sidekick > 0) {
             if (babySnake.length === 0 || performance.now() >= babyUntil) activateBabySnake(abilityLevels.sidekick);
@@ -2123,19 +2164,32 @@ function foodBounceOffset(t) {
 }
 
 function drawFood(cell) {
-    foodPulse += 0.055;
+    foodPulse += 0.055; // shared bounce/pulse clock for both fruits — advanced once per frame here
+    drawFruit(cell, food, foodType, foodSpawnTime, false);
+    if (gameMode === 'advanced' && bonusFood) drawFruit(cell, bonusFood, bonusFoodType, bonusFoodSpawnTime, true);
+}
+
+// isBonus: smaller + a purple glow ring, so the Sidekick's dedicated target reads as visually
+// distinct from the main food rather than a second identical fruit.
+function drawFruit(cell, obj, type, spawnTime, isBonus) {
     const bob  = Math.sin(foodPulse * 1.4) * cell * 0.09;
     const p    = Math.sin(foodPulse) * 0.09 + 0.91;
-    const bt   = Math.min(1, (performance.now() - foodSpawnTime) / FOOD_BOUNCE_DUR);
-    const fx   = food.x*cell + cell/2;
-    const fy   = food.y*cell + cell/2 + bob + foodBounceOffset(bt) * cell;
-    const r    = (cell/2 - 1.5) * p;
+    const bt   = Math.min(1, (performance.now() - spawnTime) / FOOD_BOUNCE_DUR);
+    const fx   = obj.x*cell + cell/2;
+    const fy   = obj.y*cell + cell/2 + bob + foodBounceOffset(bt) * cell;
+    const r    = (cell/2 - 1.5) * p * (isBonus ? 0.78 : 1);
     const shadowFrac = (bob + cell*0.09) / (cell*0.18);
     ctx.fillStyle = `rgba(0,0,0,${0.22 - shadowFrac*0.10})`;
     ctx.beginPath();
-    ctx.ellipse(food.x*cell+cell/2, food.y*cell+cell*0.88, r*(0.7+shadowFrac*0.2), r*0.28, 0, 0, Math.PI*2);
+    ctx.ellipse(obj.x*cell+cell/2, obj.y*cell+cell*0.88, r*(0.7+shadowFrac*0.2), r*0.28, 0, 0, Math.PI*2);
     ctx.fill();
-    switch (foodType) {
+    if (isBonus) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+        ctx.strokeStyle = `rgba(170,60,220,${0.45 + 0.3*pulse})`;
+        ctx.lineWidth = Math.max(1.5, cell*0.05);
+        ctx.beginPath(); ctx.arc(fx, fy, r*1.4, 0, Math.PI*2); ctx.stroke();
+    }
+    switch (type) {
         case 'strawberry': drawStrawberry(fx, fy, r); break;
         case 'watermelon': drawWatermelon(fx, fy, r); break;
         case 'cherry':     drawCherry(fx, fy, r);     break;
@@ -2450,14 +2504,69 @@ function drawTongue(cell) {
     ctx.beginPath(); ctx.arc(tx, ty, 3, 0, Math.PI*2); ctx.fill();
 }
 
+// A scaled-down version of the main snake's own look (body stroke + black outline + head
+// ellipse + simple eyes) rather than a separate purple-block sprite — reads as "a smaller
+// snake helping out" instead of a generic marker.
+const SIDEKICK_SCALE = 0.6;
 function drawBabySnake(cell) {
+    if (babySnake.length < 2) return;
     const tRem  = babyUntil - performance.now();
-    const alpha = Math.min(1, tRem / 2000);
-    for (let i = babySnake.length-1; i >= 0; i--) {
-        const seg = babySnake[i];
-        ctx.fillStyle = `rgba(170,50,210,${alpha * (i===0?1:0.65)})`;
-        rr(seg.x*cell+2, seg.y*cell+2, cell-4, cell-4, Math.max(2,cell*0.18)); ctx.fill();
+    const alpha = Math.max(0, Math.min(1, tRem / 2000));
+    if (alpha <= 0) return;
+    const hw     = cell / 2;
+    const bodyW  = cell * 0.72 * SIDEKICK_SCALE;
+    const head   = babySnake[0], neck = babySnake[1];
+    const ddx    = Math.sign(head.x - neck.x) || 1;
+    const ddy    = Math.sign(head.y - neck.y) || 0;
+    const angle  = Math.atan2(ddy, ddx);
+    const rLong  = cell * 0.70 * SIDEKICK_SCALE, rShort = cell * 0.44 * SIDEKICK_SCALE;
+    const hcx = head.x*cell+hw + ddx*cell*0.20*SIDEKICK_SCALE;
+    const hcy = head.y*cell+hw + ddy*cell*0.20*SIDEKICK_SCALE;
+
+    function path() {
+        ctx.beginPath();
+        ctx.moveTo(babySnake[0].x*cell+hw, babySnake[0].y*cell+hw);
+        for (let i = 1; i < babySnake.length; i++)
+            ctx.lineTo(babySnake[i].x*cell+hw, babySnake[i].y*cell+hw);
     }
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+    // Black outline (same double-stroke trick as the main snake)
+    path();
+    ctx.strokeStyle = 'rgba(8,8,8,0.92)';
+    ctx.lineWidth = bodyW + Math.max(1.5, cell*0.10*SIDEKICK_SCALE);
+    ctx.stroke();
+
+    // Body
+    path();
+    ctx.strokeStyle = '#278a27';
+    ctx.lineWidth = bodyW;
+    ctx.stroke();
+
+    // Head
+    ctx.beginPath();
+    ctx.ellipse(hcx, hcy, rLong, rShort, angle, 0, Math.PI*2);
+    ctx.fillStyle = '#339933';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = Math.max(1, cell*0.055*SIDEKICK_SCALE);
+    ctx.stroke();
+
+    // Simple eyes
+    const px = -ddy, py = ddx;
+    const fwd = cell*0.28*SIDEKICK_SCALE, side = cell*0.25*SIDEKICK_SCALE;
+    const er  = Math.max(1, cell*0.11*SIDEKICK_SCALE);
+    ctx.fillStyle = '#001500';
+    for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(hcx + ddx*fwd + px*side*s, hcy + ddy*fwd + py*side*s, er, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    ctx.restore();
 }
 
 // Dirt patches kick up dust squares; everywhere else (i.e. grass) kicks up little flying
