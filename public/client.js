@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.56';
+const VERSION = 'v1.57';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -321,6 +321,9 @@ function buildGrassField(cols, rows) {
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
                     tbx: 0, tby: 0,   // target bend set by bendGrassAt
+                    transitioning: false, // in grassTransitioning list?
+                    wig: 0, wigT: 0, wiggling: false, // decaying flutter kick, and in grassWiggling list?
+                    wigPhase: Math.random() * 6.28,
                 });
             }
         }
@@ -333,6 +336,7 @@ function buildGrassField(cols, rows) {
     }
     grassField = { cols, rows, blades, byCell };
     grassTransitioning = [];
+    grassWiggling = [];
 }
 
 // The body flattens a strip straight down its centerline and shoulders the grass on
@@ -343,6 +347,18 @@ const GRASS_CENTER_HALFWIDTH = 0.13; // fraction of a cell either side of center
 const GRASS_SIDE_MIX = 0.55;          // how much of the side-push is sideways vs forward-lean
 const GRASS_EASE = 0.22;              // per-frame fraction of the way from current bend to target
 let grassTransitioning = []; // blades whose rendered bend hasn't caught up to their target yet
+
+// A blade whose bend target hasn't changed (e.g. a body segment re-passing over a cell it
+// already laid flat while moving in a straight line) gets no new easing motion — that read
+// as the trailing grass going static the moment it first settled, even while the body kept
+// gliding over it. This kick fires every time any segment passes through a cell, whether or
+// not the target changed, and rides on top of the eased bend as a short decaying perpendicular
+// flutter — so the grass visibly shivers along the whole length of the body as it moves, not
+// just at the leading edge on turns.
+const GRASS_WIG_AMOUNT = 0.30; // peak flutter offset, as a fraction of blade length
+const GRASS_WIG_SPEED  = 0.9;  // radians of flutter phase advanced per frame
+const GRASS_WIG_DECAY  = 0.90; // per-frame multiplicative decay of flutter amplitude
+let grassWiggling = []; // blades with an active decaying flutter
 
 function bendGrassAt(cx, cy, dirx, diry) {
     if (!grassField) return;
@@ -359,7 +375,10 @@ function bendGrassAt(cx, cy, dirx, diry) {
             b.tbx = (dirx * (1 - GRASS_SIDE_MIX) + px * side * GRASS_SIDE_MIX) * GRASS_PUSH;
             b.tby = (diry * (1 - GRASS_SIDE_MIX) + py * side * GRASS_SIDE_MIX) * GRASS_PUSH;
         }
-        if (!grassTransitioning.includes(b)) grassTransitioning.push(b);
+        if (!b.transitioning) { b.transitioning = true; grassTransitioning.push(b); }
+        b.wig = GRASS_WIG_AMOUNT;
+        b.wigT = b.wigPhase;
+        if (!b.wiggling) { b.wiggling = true; grassWiggling.push(b); }
     }
 }
 
@@ -374,7 +393,24 @@ function updateGrassTransitions() {
         b.by += (b.tby - b.by) * GRASS_EASE;
         if (Math.abs(b.tbx - b.bx) < 0.004 && Math.abs(b.tby - b.by) < 0.004) {
             b.bx = b.tbx; b.by = b.tby;
+            b.transitioning = false;
             grassTransitioning.splice(i, 1);
+        }
+    }
+}
+
+// Decays each fluttering blade's kick amplitude back to zero over a fraction of a second.
+// Only blades kicked recently are touched, so cost stays proportional to how much of the
+// field the body currently spans, not total field size.
+function updateGrassWiggle() {
+    for (let i = grassWiggling.length - 1; i >= 0; i--) {
+        const b = grassWiggling[i];
+        b.wigT += GRASS_WIG_SPEED;
+        b.wig  *= GRASS_WIG_DECAY;
+        if (b.wig < 0.01) {
+            b.wig = 0;
+            b.wiggling = false;
+            grassWiggling.splice(i, 1);
         }
     }
 }
@@ -406,12 +442,23 @@ function drawGrassField(cell) {
             const dmag = Math.hypot(dx, dy) || 1;
             dx /= dmag; dy /= dmag;
 
-            const tipX = baseX + dx * len;
-            const tipY = baseY + dy * len;
+            let tipX = baseX + dx * len;
+            let tipY = baseY + dy * len;
             const perpX = -dy, perpY = dx;
             const bulge = len * 0.18;
-            const midX = baseX + dx * len * 0.5 + perpX * bulge;
-            const midY = baseY + dy * len * 0.5 + perpY * bulge;
+            let midX = baseX + dx * len * 0.5 + perpX * bulge;
+            let midY = baseY + dy * len * 0.5 + perpY * bulge;
+
+            // Decaying perpendicular flutter from a recent pass — makes the tip (and the
+            // curve's control point, half as much) shiver for a moment instead of the blade
+            // going instantly rigid the moment its bend target is reached.
+            if (b.wig > 0) {
+                const wob = Math.sin(b.wigT) * b.wig * len;
+                tipX += perpX * wob;
+                tipY += perpY * wob;
+                midX += perpX * wob * 0.5;
+                midY += perpY * wob * 0.5;
+            }
 
             ctx.moveTo(baseX, baseY);
             ctx.quadraticCurveTo(midX, midY, tipX, tipY);
@@ -1789,6 +1836,7 @@ function loop(now) {
     }
     updateRenderSnake(now);
     updateGrassTransitions();
+    updateGrassWiggle();
     // Snake slide-in intro
     if (gameState === 'entering') {
         const t = Math.min(1, (now - enterStart) / ENTER_DUR);
@@ -1871,10 +1919,14 @@ function draw() {
     else if (gameState === 'countdown') { drawCountdown(size, cell); }
 
     ctx.restore(); // end shake — VERSION stays stable
-    ctx.fillStyle='rgba(0,0,0,0.55)';
-    ctx.font=`${Math.max(9,Math.floor(cell*0.42))}px monospace`;
+    ctx.font=`bold ${Math.max(15,Math.floor(cell*0.6))}px monospace`;
     ctx.textAlign='right'; ctx.textBaseline='bottom';
-    ctx.fillText(VERSION, size-4, size-3);
+    ctx.lineJoin='round';
+    ctx.lineWidth=3;
+    ctx.strokeStyle='rgba(0,0,0,0.65)';
+    ctx.strokeText(VERSION, size-6, size-4);
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    ctx.fillText(VERSION, size-6, size-4);
 }
 
 function foodBounceOffset(t) {
@@ -2288,9 +2340,13 @@ function setHandedness(h) {
 }
 
 // Swallowed food renders as a shrinking bulge riding along renderSnake toward the tail —
-// same color as the body (this is skin stretching over something, not a colored blob),
-// wide enough near the head to actually poke out past the body's normal silhouette, then
-// shrinking back under it well before it reaches the tail.
+// same color as the body (this is skin stretching over something, not a colored blob), but
+// with its own dark outline so it reads as a raised shape rather than blending flat into the
+// body fill. Sized to clearly overflow the body's silhouette near the head (roughly 1.5x the
+// body's half-width at segIndex 0), shrinking back under it before it reaches the tail. Drawn
+// from drawSnakeSmooth AFTER the scales/highlight stripe so those don't wash it out, and the
+// segIndex===0 case is expected to start out mostly under the head — like a real swallow —
+// then clearly pop out from behind it within a tick or two as it's carried backward.
 function drawDigestion(cell, bodyW) {
     if (!digestingFood.length || !renderSnake.length) return;
     const hw = cell / 2;
@@ -2299,17 +2355,22 @@ function drawDigestion(cell, bodyW) {
     for (const b of digestingFood) {
         if (b.segIndex < 0 || b.segIndex >= renderSnake.length) continue;
         const seg  = renderSnake[b.segIndex];
-        const frac = 1 - b.segIndex / span; // 1 near the head, 0 near the tail
-        const r    = bodyW / 2 * (0.18 + 1.15 * frac);
+        const frac = Math.max(0, 1 - b.segIndex / (span * 0.65)); // fades out well before the tail
+        if (frac <= 0) continue;
+        const r = bodyW / 2 * (1 + 0.9 * frac); // clearly overflows the body width near the head
         const x = seg.x*cell+hw, y = seg.y*cell+hw;
         ctx.fillStyle = '#278a27'; // same green as the body — a shape, not a color
         ctx.beginPath();
         ctx.ellipse(x, y, r, r * 0.88, 0, 0, Math.PI*2);
         ctx.fill();
-        // faint highlight for a bit of roundness, same treatment as the head's
-        ctx.fillStyle = 'rgba(140,255,100,0.16)';
+        // dark outline gives the bulge an edge to read against the body fill
+        ctx.strokeStyle = 'rgba(10,55,10,0.40)';
+        ctx.lineWidth = Math.max(1, cell * 0.05);
+        ctx.stroke();
+        // highlight for a bit of roundness, same treatment as the head's
+        ctx.fillStyle = 'rgba(140,255,100,0.20)';
         ctx.beginPath();
-        ctx.ellipse(x, y - r*0.15, r*0.55, r*0.5, 0, 0, Math.PI*2);
+        ctx.ellipse(x, y - r*0.15, r*0.5, r*0.45, 0, 0, Math.PI*2);
         ctx.fill();
     }
     ctx.restore();
@@ -2361,8 +2422,6 @@ function drawSnakeSmooth(cell) {
     ctx.lineWidth = bodyW;
     ctx.stroke();
 
-    drawDigestion(cell, bodyW);
-
     // Scales — quadratic bezier arcs across body, bowing toward tail.
     {
         const halfH  = bodyW * 0.34; // half-span across body
@@ -2399,6 +2458,8 @@ function drawSnakeSmooth(cell) {
     ctx.strokeStyle = 'rgba(140,255,100,0.22)';
     ctx.lineWidth = bodyW * 0.36;
     ctx.stroke();
+
+    drawDigestion(cell, bodyW);
 
     // Head — elongated ellipse in direction of travel
     ctx.fillStyle = '#339933';
