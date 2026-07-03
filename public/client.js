@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.68';
+const VERSION = 'v1.69';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -204,14 +204,16 @@ function addBlobSubpath(bctx, cx, cy, R, n, jitter) {
 // patch's inner shading blob into another shared path (single fill) — so overlapping
 // patches read as one continuous blob instead of stacked, visibly-seamed layers.
 function drawDirtPatches(bctx, patches) {
+    // More opaque than before — the base ground is now green, so a patch needs to actually
+    // cover it rather than half-blend into a muddy olive tone.
     bctx.beginPath();
     for (const p of patches) addBlobSubpath(bctx, p.cx, p.cy, p.R, 11 + Math.floor(Math.random() * 4), 0.5);
-    bctx.fillStyle = 'rgba(150,112,58,0.55)';
+    bctx.fillStyle = 'rgba(150,112,58,0.88)';
     bctx.fill();
 
     bctx.beginPath();
     for (const p of patches) addBlobSubpath(bctx, p.cx, p.cy, p.R * 0.62, 9 + Math.floor(Math.random() * 3), 0.5);
-    bctx.fillStyle = 'rgba(120,88,42,0.4)';
+    bctx.fillStyle = 'rgba(120,88,42,0.6)';
     bctx.fill();
 }
 
@@ -262,17 +264,18 @@ function buildBackground(cols, rows) {
     c.width = w; c.height = h;
     const bctx = c.getContext('2d');
 
-    // Soil brown under the grass instead of flat green — with blades now dense and thick
-    // enough to be the dominant color, showing bare earth in the gaps between them reads
-    // more like real ground than another shade of green would.
-    bctx.fillStyle = '#5c4526';
+    // Base ground is grass-green — this is now the primary "grass" look by default (the
+    // interactive blade field on top is an optional, off-by-default layer, see grassEnabled),
+    // so the base itself needs to actually read as a lawn, not bare dirt with a few flecks.
+    bctx.fillStyle = '#3f8a20';
     bctx.fillRect(0, 0, w, h);
 
-    // Subtle mottling for grass texture variation
+    // Mottling for grass texture variation — lighter and darker patches blended into the
+    // base so it doesn't look like one flat color.
     for (let i = 0; i < cols * rows * 1.1; i++) {
         const x = Math.random() * w, y = Math.random() * h;
         const r = 8 + Math.random() * 22;
-        bctx.fillStyle = Math.random() < 0.5 ? 'rgba(95,195,55,0.16)' : 'rgba(45,135,20,0.14)';
+        bctx.fillStyle = Math.random() < 0.5 ? 'rgba(120,210,70,0.30)' : 'rgba(30,110,10,0.28)';
         bctx.beginPath();
         bctx.ellipse(x, y, r, r * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
         bctx.fill();
