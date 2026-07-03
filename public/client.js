@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.58';
+const VERSION = 'v1.59';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1538,6 +1538,7 @@ function tick() {
         updateScoreDisplay(); sfxFlyCatch(); vibrate([15,10,15]);
         scorePops.push({ x: nx*cell+cell/2, y: ny*cell+cell/2, born: performance.now(), val: `+${FLY_POINTS}` });
         stopFlyBuzz(); fly = null;
+        digestingFood.push({ segIndex: 0 });
     }
 
     if (eating) {
