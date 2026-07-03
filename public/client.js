@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.59';
+const VERSION = 'v1.60';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -309,18 +309,23 @@ function buildBackground(cols, rows) {
 // until the snake passes through that exact cell again (from whatever direction it's
 // heading that time). Rebuilt whenever CELL_COUNT changes (see startGame()) so density
 // always matches the current grid.
-const GRASS_PER_CELL = 96;
+// Experimental "bold" look: far fewer, much larger blades with a black cartoon outline,
+// instead of a dense fine-grained field. Tune GRASS_PER_CELL / the len range below / the
+// outline width in drawGrassField to taste.
+const GRASS_PER_CELL = 7;
 const GRASS_PUSH      = 0.65;  // how far (in cell-fractions) a pass lays a blade over
 let grassField  = null; // { cols, rows, blades, byCell: Map }
 
 // Discrete color+width combos rather than one fixed look — each blade is assigned one at
 // build time (variant), and rendering batches by variant (one stroke() call per variant,
 // same idea as the old 2-tone split, just richer) so this stays cheap regardless of count.
+// Opacity bumped up from the old fine-grained look — with so few blades each one needs to
+// read as a solid, sticker-like shape rather than a faint wisp.
 const GRASS_VARIANTS = [
-    { color: 'rgba(26, 92,16,0.58)', width: 0.85 },
-    { color: 'rgba(40,122,20,0.52)', width: 1.05 },
-    { color: 'rgba(58,145,32,0.50)', width: 1.20 },
-    { color: 'rgba(85,172,52,0.44)', width: 1.35 },
+    { color: 'rgba(26, 92,16,0.88)', width: 0.85 },
+    { color: 'rgba(40,122,20,0.85)', width: 1.05 },
+    { color: 'rgba(58,145,32,0.82)', width: 1.20 },
+    { color: 'rgba(85,172,52,0.80)', width: 1.35 },
 ];
 
 function onDirt(x, y) {
@@ -347,7 +352,7 @@ function buildGrassField(cols, rows) {
                 blades.push({
                     cx, cy, ox, oy,
                     tilt: (Math.random() - 0.5) * 0.35,
-                    len:  0.28 + Math.random() * 0.17,
+                    len:  0.85 + Math.random() * 0.55, // big stylized tufts, ~1-1.4 cells long
                     variant: Math.floor(Math.random() * GRASS_VARIANTS.length),
                     bx: 0, by: 0,     // currently-rendered bend, eases toward tbx/tby
                     tbx: 0, tby: 0,   // target bend set by bendGrassAt
@@ -445,16 +450,19 @@ function updateGrassWiggle() {
     }
 }
 
-// Batched by variant into a handful of paths (one stroke() call each) instead of one
-// stroke() per blade — thousands of individual stroke calls was the actual cost, not the
-// blade count.
+// Batched by variant into a handful of Path2D objects (one stroke() call each) instead of
+// one stroke() per blade — thousands of individual stroke calls was the actual cost, not
+// the blade count. Each variant's path is built once and stroked twice — a wide black pass
+// first, then the colored fill pass on top — for the cartoon-outline look, without having
+// to redo the per-blade curve math twice.
 function drawGrassField(cell) {
     if (!grassField) return;
     ctx.save();
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     for (let vi = 0; vi < GRASS_VARIANTS.length; vi++) {
         const variant = GRASS_VARIANTS[vi];
-        ctx.beginPath();
+        const path = new Path2D();
         for (const b of grassField.blades) {
             if (b.variant !== vi) continue;
             const baseX = (b.cx + b.ox) * cell;
@@ -475,7 +483,7 @@ function drawGrassField(cell) {
             let tipX = baseX + dx * len;
             let tipY = baseY + dy * len;
             const perpX = -dy, perpY = dx;
-            const bulge = len * 0.18;
+            const bulge = len * 0.22;
             let midX = baseX + dx * len * 0.5 + perpX * bulge;
             let midY = baseY + dy * len * 0.5 + perpY * bulge;
 
@@ -490,12 +498,18 @@ function drawGrassField(cell) {
                 midY += perpY * wob * 0.5;
             }
 
-            ctx.moveTo(baseX, baseY);
-            ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+            path.moveTo(baseX, baseY);
+            path.quadraticCurveTo(midX, midY, tipX, tipY);
         }
+        const fillWidth = Math.max(2, cell * 0.16 * variant.width);
+        // Black outline pass — wider, drawn first, so the fill pass on top leaves an even
+        // black border around each blade (the classic "stroke twice" cartoon-outline trick).
+        ctx.strokeStyle = 'rgba(15,15,15,0.88)';
+        ctx.lineWidth = fillWidth + Math.max(2, cell * 0.05);
+        ctx.stroke(path);
         ctx.strokeStyle = variant.color;
-        ctx.lineWidth = Math.max(1, cell * 0.06 * variant.width);
-        ctx.stroke();
+        ctx.lineWidth = fillWidth;
+        ctx.stroke(path);
     }
     ctx.restore();
 }
