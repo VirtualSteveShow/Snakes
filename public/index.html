@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Snake Survivor">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=74">
+    <link rel="stylesheet" href="style.css?v=75">
     <title>Snake Survivor</title>
 </head>
 <body>
@@ -105,6 +105,31 @@
         <div class="opt-row" style="gap:8px">
             <button id="btn-grass-reset" class="toggle-btn off" style="flex:1;padding:5px 8px">↺ RESET VISUAL</button>
         </div>
+        <div class="opt-row"><span class="opt-label" style="opacity:0.6">— ABILITY DEBUG —</span></div>
+        <div class="opt-row">
+            <span class="opt-label">ABILITY</span>
+            <select id="sl-dbg-ability" class="dbg-select"></select>
+            <span class="opt-val" id="vl-dbg-ability-lvl" style="width:20px">L0</span>
+        </div>
+        <div class="opt-row" style="gap:6px">
+            <button class="toggle-btn off dbg-lvl-btn" data-lvl="0" style="flex:1;padding:5px 0">0</button>
+            <button class="toggle-btn off dbg-lvl-btn" data-lvl="1" style="flex:1;padding:5px 0">1</button>
+            <button class="toggle-btn off dbg-lvl-btn" data-lvl="2" style="flex:1;padding:5px 0">2</button>
+            <button class="toggle-btn off dbg-lvl-btn" data-lvl="3" style="flex:1;padding:5px 0">3</button>
+        </div>
+        <div class="opt-row" style="gap:8px">
+            <button id="btn-dbg-maxall"   class="toggle-btn off" style="flex:1;padding:5px 8px">MAX ALL</button>
+            <button id="btn-dbg-resetall" class="toggle-btn off" style="flex:1;padding:5px 8px">RESET ALL</button>
+        </div>
+        <div class="opt-row">
+            <span class="opt-label">SNK LEN</span>
+            <input type="range" id="sl-dbg-length" min="1" max="60" step="1">
+            <span class="opt-val" id="vl-dbg-length">5</span>
+        </div>
+        <div class="opt-row" style="gap:8px">
+            <button id="btn-dbg-xp"      class="toggle-btn off" style="flex:1;padding:5px 8px">+50 XP</button>
+            <button id="btn-dbg-lvlup"   class="toggle-btn off" style="flex:1;padding:5px 8px">FORCE LEVEL UP</button>
+        </div>
         <div id="opts-close-bar">▼ close</div>
     </div>
 
@@ -151,7 +176,7 @@
         </div>
     </div>
 
-    <script src="client.js?v=74"></script>
+    <script src="client.js?v=75"></script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>

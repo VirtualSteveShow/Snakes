@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.74';
+const VERSION = 'v1.75';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1287,6 +1287,38 @@ function pickAbility(key) {
     requestLevelUp();
 }
 
+// ── Debug (options panel — ABILITY DEBUG section) ─────────────
+// Bypasses the normal level-up flow entirely (no slot-exclusivity/cap checks — this is for
+// freely testing any ability in isolation, not for simulating a real run) but still applies
+// the same immediate-effect setup pickAbility() does, so e.g. Sidekick actually spawns.
+function debugSetAbilityLevel(key, level) {
+    abilityLevels[key] = level;
+    if (key === 'armor') {
+        armorCharges = level > 0 ? ABILITY_CFG.armor.charges[level - 1] : 0;
+    }
+    if (key === 'sidekick') {
+        if (level > 0) {
+            if (babySnake.length === 0) activateBabySnake(level);
+            if (!bonusFood) spawnBonusFood();
+        } else {
+            babySnake = []; bonusFood = null;
+        }
+    }
+    if (key === 'echo' && level === 0) echoFood = null;
+    updateAdvancedHUD();
+}
+
+function debugSetSnakeLength(n) {
+    if (!snake.length) return;
+    n = Math.max(1, Math.min(n, CELL_COUNT * CELL_COUNT - 5));
+    while (snake.length < n) {
+        const tail = snake[snake.length - 1];
+        snake.push({ x: tail.x, y: tail.y });
+    }
+    while (snake.length > n) snake.pop();
+    prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
+}
+
 function renderLevelUp() {
     const list = document.getElementById('levelup-cards');
     list.innerHTML = '';
@@ -1536,6 +1568,55 @@ function initOptions() {
             s.apply(s.def);
         }
         rebuildGrass();
+    });
+
+    // ── Ability debug ──────────────────────────────────────────
+    const dbgSelect = document.getElementById('sl-dbg-ability');
+    const dbgLvlVal = document.getElementById('vl-dbg-ability-lvl');
+    if (dbgSelect) {
+        for (const key of ABILITY_POOL) {
+            const opt = document.createElement('option');
+            opt.value = key; opt.textContent = ABILITY_CFG[key].name;
+            dbgSelect.appendChild(opt);
+        }
+        const syncDbgLvl = () => { if (dbgLvlVal) dbgLvlVal.textContent = `L${abilityLevels[dbgSelect.value] || 0}`; };
+        dbgSelect.addEventListener('change', syncDbgLvl);
+        syncDbgLvl();
+
+        document.querySelectorAll('.dbg-lvl-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                debugSetAbilityLevel(dbgSelect.value, parseInt(btn.dataset.lvl, 10));
+                syncDbgLvl();
+            });
+        });
+
+        document.getElementById('btn-dbg-maxall')?.addEventListener('click', () => {
+            for (const key of ABILITY_POOL) debugSetAbilityLevel(key, 3);
+            syncDbgLvl();
+        });
+        document.getElementById('btn-dbg-resetall')?.addEventListener('click', () => {
+            for (const key of ABILITY_POOL) debugSetAbilityLevel(key, 0);
+            syncDbgLvl();
+        });
+    }
+
+    const dbgLenSlider = document.getElementById('sl-dbg-length');
+    const dbgLenVal    = document.getElementById('vl-dbg-length');
+    if (dbgLenSlider) {
+        dbgLenSlider.addEventListener('input', () => {
+            const n = parseInt(dbgLenSlider.value, 10);
+            dbgLenVal.textContent = String(n);
+            debugSetSnakeLength(n);
+        });
+    }
+
+    document.getElementById('btn-dbg-xp')?.addEventListener('click', () => {
+        if (gameMode === 'advanced' && gameState === 'running') gainXP(50);
+    });
+    document.getElementById('btn-dbg-lvlup')?.addEventListener('click', () => {
+        if (gameMode !== 'advanced' || gameState !== 'running') return;
+        levelUpQueue++;
+        requestLevelUp();
     });
 
     const closeBar = document.getElementById('opts-close-bar');
@@ -2288,7 +2369,13 @@ function loop(now) {
             }
         } else {
             let effMs = tickMs;
-            if (holdBoost) {
+            // holdBoost just means "the hold gesture is active" — it only affects speed if
+            // Sprint specifically is the hold-slot ability owned (Pit Sense also arms
+            // holdBoost, per setupTouch, but is a pure info overlay with no speed effect;
+            // without this guard, holding with only Pit Sense computed effMs from
+            // abilityLevels.sprint===0, i.e. floorMult[-1]/factor[-1] === undefined -> NaN,
+            // which froze the tick loop entirely since `now - lastTick >= NaN` is never true).
+            if (holdBoost && abilityLevels.sprint > 0) {
                 const l = abilityLevels.sprint;
                 effMs = Math.max(MIN_MS * ABILITY_CFG.sprint.floorMult[l-1], tickMs * ABILITY_CFG.sprint.factor[l-1]);
             } else if (gameMode === 'advanced' && now < slowUntil) effMs = tickMs * 2.5;

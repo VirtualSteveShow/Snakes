@@ -181,6 +181,17 @@ input[type="range"] {
     touch-action: pan-x; /* override body touch-action:none so sliders work on mobile */
 }
 
+.dbg-select {
+    flex: 1;
+    background: #1a1a1a;
+    color: #ccc;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 5px 6px;
+}
+
 .toggle-btn {
     padding: 5px 18px;
     background: #44ff44;
