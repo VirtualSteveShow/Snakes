@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.83';
+const VERSION = 'v1.84';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -599,6 +599,12 @@ let chainCombo     = 1;        // current Chain Reaction multiplier
 let foodIsBig      = false;    // Big Fish — this spawn of `food` is oversized/worth more
 let magnetPulls    = [];       // {x0, y0, born, type} — purely visual, one per Magnet grab (see drawMagnetPulls)
 const MAGNET_PULL_MS = 220;
+let lastMoltShedAt = 0;        // performance.now() of the last tail-shed while Molt is held
+const MOLT_MIN_LENGTH = 3;     // shedding floor — can't Molt below this many segments
+let wallWrapUntil  = 0;        // performance.now() deadline — Wall Wrap's edge-passthrough window
+let burrowChargeUntil = 0;     // performance.now() deadline — Burrows' brief charge before it fires (0 = idle)
+const BURROW_CHARGE_MS = 450;
+let autopilotUntil = 0;        // performance.now() deadline — Autopilot's auto-steer window
 let echoFood         = null;   // Echo's periodically-spawned duplicate pickup
 let echoFoodType     = 'apple';
 let echoFoodSpawnTime = 0;
@@ -613,8 +619,9 @@ let abilityLevels = {
     sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
     reversethrust:0, nimbletail:0, rattle:0, phasetail:0,
     echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
+    molt:0, wallwrap:0, burrows:0, autopilot:0,
 }; // 0=locked, 1/2/3
-let abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
+let abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0, wallwrap:0, burrows:0, autopilot:0 };
 
 // Only one ability can occupy the hold slot, and only one the tap slot, for the whole run —
 // there are exactly two free input gestures (hold, tap), no dedicated buttons. Auto/passive
@@ -724,6 +731,28 @@ const ABILITY_CFG = {
         descs: ['0.6s invincible after eating', '0.9s invincible', '1.2s invincible'],
         durations: [600, 900, 1200],
     },
+    molt: {
+        name: 'MOLT', slot: 'hold',
+        descs: ['Hold to shed tail for safety', 'Faster shedding', 'Fastest shedding'],
+        shedIntervalMs: [550, 380, 240], // ms between each shed segment while held
+    },
+    wallwrap: {
+        name: 'WALL WRAP', slot: 'tap',
+        descs: ['Tap to wrap through walls for 3s', '4s wrap window', '5s wrap window'],
+        cooldowns: [16000, 12000, 8000],
+        durations: [3000, 4000, 5000],
+    },
+    burrows: {
+        name: 'BURROWS', slot: 'tap',
+        descs: ['Tap to tunnel to a random safe spot', 'Shorter cooldown', 'Shortest cooldown'],
+        cooldowns: [20000, 14000, 9000],
+    },
+    autopilot: {
+        name: 'AUTOPILOT', slot: 'tap',
+        descs: ['Tap for 3s of auto-steering around crashes', '4s window', '5s window'],
+        cooldowns: [18000, 13000, 9000],
+        durations: [3000, 4000, 5000],
+    },
 };
 const ABILITY_POOL = Object.keys(ABILITY_CFG);
 
@@ -753,6 +782,10 @@ const SNAKE_CHARACTERS = [
     { key: 'chainreaction',      name: 'Coral Snake' },
     { key: 'efficientdigestion', name: 'Boa' },
     { key: 'ironscales',         name: 'Diamondback' },
+    { key: 'molt',               name: 'Copperhead' },
+    { key: 'wallwrap',           name: 'Vine Snake' },
+    { key: 'burrows',            name: 'Sand Boa' },
+    { key: 'autopilot',          name: 'Black Mamba' },
 ];
 for (let i = 0; i < SNAKE_CHARACTERS.length; i++) {
     SNAKE_CHARACTERS[i].hue = Math.round((120 + i * (360 / SNAKE_CHARACTERS.length)) % 360);
@@ -1930,11 +1963,11 @@ function setupTouch() {
         if (e.target.closest('button') || e.target.closest('input')) return;
         sx = e.touches[0].clientX; sy = e.touches[0].clientY;
         // Hold-slot abilities — advanced mode only, and only if the hold slot is actually
-        // occupied by something (only Sprint right now; only one can ever be owned at once, see
+        // occupied by something (Sprint or Molt; only one can ever be owned at once, see
         // rollAbilityChoices). `holdBoost` just means "the hold gesture is active right now";
         // what that actually does depends on which hold-slot ability is owned (see loop()/draw()).
         if (gameState === 'running' && gameMode === 'advanced'
-            && abilityLevels.sprint > 0) {
+            && (abilityLevels.sprint > 0 || abilityLevels.molt > 0)) {
             clearTimeout(holdBoostTimer);
             holdBoostTimer = setTimeout(() => { holdBoost = true; }, HOLD_BOOST_DELAY);
         }
@@ -1973,6 +2006,32 @@ function setDir(d) {
         nextDir = d;
         if (gameState === 'running') { sfxSwipe(); vibrate(6); }
     }
+}
+
+// Autopilot — only ever called while its window is active (see tick()). Tries the player's
+// own queued direction first, then perpendicular turns, then reversing, and only overrides
+// when continuing straight would actually be fatal; a deliberate safe turn is never touched.
+const AUTOPILOT_PERPENDICULARS = { up:['left','right'], down:['left','right'], left:['up','down'], right:['up','down'] };
+const AUTOPILOT_OPPOSITE = { up:'down', down:'up', left:'right', right:'left' };
+function isSafeDir(d) {
+    const tx = snake[0].x + (d==='right'?1: d==='left'?-1:0);
+    const ty = snake[0].y + (d==='down' ?1: d==='up'  ?-1:0);
+    if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) {
+        // Wall Wrap makes edges non-fatal too — don't have autopilot dodge a wall that's
+        // actually safe to walk through this moment.
+        if (!(gameMode === 'advanced' && performance.now() < wallWrapUntil)) return false;
+    }
+    if (snake.slice(0,-1).some(s => s.x===tx && s.y===ty)) return false;
+    return true;
+}
+function pickSafeDirection(preferredDir) {
+    if (isSafeDir(preferredDir)) return preferredDir;
+    for (const d of AUTOPILOT_PERPENDICULARS[preferredDir]) {
+        if (isSafeDir(d)) return d;
+    }
+    const opp = AUTOPILOT_OPPOSITE[preferredDir];
+    if (isSafeDir(opp)) return opp;
+    return preferredDir; // nothing safe — let it die as normal
 }
 
 // ── Game logic ────────────────────────────────────────────────
@@ -2016,13 +2075,15 @@ function startGame() {
     xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0; levelUpPendingAt = 0;
     rattleUntil = 0; phaseUntil = 0; ironScalesUntil = 0; lastEatCell = null; chainCombo = 1; foodIsBig = false;
     magnetPulls = [];
+    lastMoltShedAt = 0; wallWrapUntil = 0; burrowChargeUntil = 0; autopilotUntil = 0;
     echoFood = null; echoFoodType = 'apple'; echoFoodSpawnTime = 0;
     abilityLevels = {
         sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
         reversethrust:0, nimbletail:0, rattle:0, phasetail:0,
         echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
+        molt:0, wallwrap:0, burrows:0, autopilot:0,
     };
-    abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
+    abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0, wallwrap:0, burrows:0, autopilot:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
     bonusFood = null;
     pendingGrowth = 0;
@@ -2080,10 +2141,15 @@ function spawnBonusFood() {
 function tick() {
     prevSnake = snake.map(s => ({ x: s.x, y: s.y }));
     const cell = canvas.width / CELL_COUNT;
+    const now = performance.now();
+    if (gameMode === 'advanced' && now < autopilotUntil) nextDir = pickSafeDirection(nextDir);
     dir = nextDir;
-    const nx = snake[0].x + (dir==='right'?1: dir==='left'?-1:0);
-    const ny = snake[0].y + (dir==='down' ?1: dir==='up'  ?-1:0);
-    if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) {
+    let nx = snake[0].x + (dir==='right'?1: dir==='left'?-1:0);
+    let ny = snake[0].y + (dir==='down' ?1: dir==='up'  ?-1:0);
+    if (gameMode === 'advanced' && now < wallWrapUntil) {
+        nx = (nx + CELL_COUNT) % CELL_COUNT;
+        ny = (ny + CELL_COUNT) % CELL_COUNT;
+    } else if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) {
         const ix = snake[0].x*cell + cell/2 + (dir==='right'?cell/2: dir==='left'?-cell/2:0);
         const iy = snake[0].y*cell + cell/2 + (dir==='down' ?cell/2: dir==='up'  ?-cell/2:0);
         if (trySurviveCollision('wall', ix, iy)) return;
@@ -2225,6 +2291,44 @@ function spawnArmorBreak(x, y) {
     }
 }
 
+// Molt's per-shed cue — a small papery green/brown puff at the tail tip that just got left
+// behind, distinct from Armor's cyan "hit forgiven" burst.
+function spawnMoltShed(x, y) {
+    const n = 7;
+    const colors = ['#7a9c3a', '#a8c460', '#c8a050', '#e8d090'];
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.6;
+        const speed = 0.8 + Math.random() * 1.6;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 0.6,
+            life: 1, decay: 0.04 + Math.random() * 0.02,
+            size: 2 + Math.random() * 3,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            kind: 'debris',
+        });
+    }
+}
+
+// Burrows' tunnel cue — called twice per teleport (origin + destination) with a dirt-colored
+// burst, reading as "dug in here, popped up there".
+function spawnBurrowPoof(x, y) {
+    const n = 12;
+    const colors = ['#8a6828', '#c8a050', '#5c4526', '#3a2e18'];
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n;
+        const speed = 1.2 + Math.random() * 2.2;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
+            life: 1, decay: 0.03 + Math.random() * 0.02,
+            size: 3 + Math.random() * 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            kind: 'impact',
+        });
+    }
+}
+
 // Checks every "survive a fatal hit" ability in order and returns true if this collision
 // should be forgiven (handling its own consumption/feedback), false if the snake should
 // actually die. Centralizes Phase Tail (self-only, no consumption — the window just runs
@@ -2315,6 +2419,9 @@ function tapAbilityReady() {
     if (abilityLevels.rattle > 0)        return now >= abilityCooldowns.rattle;
     if (abilityLevels.phasetail > 0)     return now >= abilityCooldowns.phasetail;
     if (abilityLevels.slowtime > 0)      return now >= abilityCooldowns.slowtime;
+    if (abilityLevels.wallwrap > 0)      return now >= abilityCooldowns.wallwrap;
+    if (abilityLevels.burrows > 0)       return now >= abilityCooldowns.burrows && !burrowChargeUntil;
+    if (abilityLevels.autopilot > 0)     return now >= abilityCooldowns.autopilot;
     return false;
 }
 
@@ -2398,6 +2505,63 @@ function tryPhaseTail() {
     sfxLunge(); vibrate(15);
 }
 
+// Wall Wrap — board edges stop being fatal for a few seconds (see tick()'s nx/ny wrap).
+function tryWallWrap() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.wallwrap === 0) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.wallwrap) return;
+    wallWrapUntil = now + ABILITY_CFG.wallwrap.durations[abilityLevels.wallwrap-1];
+    abilityCooldowns.wallwrap = now + ABILITY_CFG.wallwrap.cooldowns[abilityLevels.wallwrap-1];
+    sfxLunge(); vibrate(15);
+}
+
+// Burrows — arms a brief charge-up (drawn in draw(), see drawBurrowCharge); the actual
+// teleport fires from loop() once burrowChargeUntil elapses (see performBurrowTeleport).
+// The game keeps running during the charge, so activating it badly is a real risk.
+function tryBurrow() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.burrows === 0 || burrowChargeUntil) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.burrows) return;
+    burrowChargeUntil = now + BURROW_CHARGE_MS;
+    abilityCooldowns.burrows = now + ABILITY_CFG.burrows.cooldowns[abilityLevels.burrows-1];
+    sfxLunge(); vibrate(15);
+}
+
+// Relocates the whole snake (preserving its shape) to a random in-bounds position — called
+// once Burrows' charge window elapses. Translating rather than placing just the head keeps
+// every segment's relative offset intact, so the body can't end up somewhere discontinuous.
+function performBurrowTeleport() {
+    if (!snake.length) return;
+    const cell = canvas.width / CELL_COUNT;
+    const origin = snake[0];
+    const minX = Math.min(...snake.map(s => s.x)), maxX = Math.max(...snake.map(s => s.x));
+    const minY = Math.min(...snake.map(s => s.y)), maxY = Math.max(...snake.map(s => s.y));
+    const w = maxX - minX, h = maxY - minY;
+    if (w >= CELL_COUNT || h >= CELL_COUNT) return; // snake fills the board — nowhere to go
+    const newMinX = Math.floor(Math.random() * (CELL_COUNT - w));
+    const newMinY = Math.floor(Math.random() * (CELL_COUNT - h));
+    const dx = newMinX - minX, dy = newMinY - minY;
+    spawnBurrowPoof(origin.x*cell + cell/2, origin.y*cell + cell/2);
+    snake = snake.map(s => ({ x: s.x + dx, y: s.y + dy }));
+    prevSnake = snake.map(s => ({ x: s.x, y: s.y })); // jump-cut the render interpolation, no slide
+    renderSnake = snake;
+    spawnBurrowPoof(snake[0].x*cell + cell/2, snake[0].y*cell + cell/2);
+}
+
+// Autopilot — arms a short window (see tick()'s pickSafeDirection call); no per-frame work
+// needed here beyond setting the deadline.
+function tryAutopilot() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.autopilot === 0) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.autopilot) return;
+    autopilotUntil = now + ABILITY_CFG.autopilot.durations[abilityLevels.autopilot-1];
+    abilityCooldowns.autopilot = now + ABILITY_CFG.autopilot.cooldowns[abilityLevels.autopilot-1];
+    sfxLunge(); vibrate(15);
+}
+
 // Tap-slot dispatcher — only one tap ability can ever be owned at a time (see
 // rollAbilityChoices' slot-exclusivity rule), so at most one branch here ever does anything.
 function tryTapAbility() {
@@ -2407,6 +2571,9 @@ function tryTapAbility() {
     if (abilityLevels.rattle > 0)        { tryRattle();          return; }
     if (abilityLevels.phasetail > 0)     { tryPhaseTail();       return; }
     if (abilityLevels.slowtime > 0)      { tryActivateSlowTime(); return; }
+    if (abilityLevels.wallwrap > 0)      { tryWallWrap();        return; }
+    if (abilityLevels.burrows > 0)       { tryBurrow();          return; }
+    if (abilityLevels.autopilot > 0)     { tryAutopilot();       return; }
 }
 
 // ── Fly ───────────────────────────────────────────────────────
@@ -2616,6 +2783,25 @@ function loop(now) {
         showNextLevelUp();
     }
     if (gameState === 'running') updateAbilityCooldownVisuals();
+    if (gameState === 'running' && !levelUpOpen && gameMode === 'advanced') {
+        // Molt — sheds one tail segment at a time while held, independent of tick rate, down
+        // to a safety floor so it can never shrink the run away to nothing.
+        if (holdBoost && abilityLevels.molt > 0 && snake.length > MOLT_MIN_LENGTH
+            && now - lastMoltShedAt >= ABILITY_CFG.molt.shedIntervalMs[abilityLevels.molt - 1]) {
+            lastMoltShedAt = now;
+            const tail = snake.pop();
+            digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
+            const cell = canvas.width / CELL_COUNT;
+            spawnMoltShed(tail.x*cell + cell/2, tail.y*cell + cell/2);
+        }
+        // Burrows — the actual teleport fires here once the brief charge window from
+        // tryBurrow() elapses; tick() keeps running normally during the charge, so dying
+        // mid-charge is a real risk, same as any other timed-window ability.
+        if (burrowChargeUntil && now >= burrowChargeUntil) {
+            burrowChargeUntil = 0;
+            performBurrowTeleport();
+        }
+    }
     if (gameState === 'running' && !levelUpOpen) {
         if (lungeQueue > 0) {
             if (now - lastTick >= 35) {
@@ -2713,6 +2899,7 @@ function draw() {
         if (magnetPulls.length) drawMagnetPulls(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
         if (tapAbilityReady()) drawTapReady(cell);
+        if (burrowChargeUntil) drawBurrowCharge(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
@@ -2729,6 +2916,14 @@ function draw() {
     ctx.strokeStyle = '#1a5208';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, size-2, size-2);
+    // Wall Wrap's active window — a pulsing cyan edge so it's obvious the board has gone
+    // "soft" before you ride into it expecting a wrap.
+    if (gameMode === 'advanced' && performance.now() < wallWrapUntil) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+        ctx.strokeStyle = `rgba(80,200,255,${0.5 + 0.35*pulse})`;
+        ctx.lineWidth = Math.max(3, cell*0.12);
+        ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, size-ctx.lineWidth, size-ctx.lineWidth);
+    }
 
     if (gameState === 'over') {
         const el = performance.now() - deathTime;
@@ -3095,6 +3290,23 @@ function drawTapReady(cell) {
     ctx.lineWidth = Math.max(1.5, cell * 0.08);
     ctx.beginPath();
     ctx.arc(hx, hy, cell*0.85 + pulse*cell*0.12, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Burrows' charge-up — a shrinking purple ring that closes in on the head over
+// BURROW_CHARGE_MS, so the moment it fires reads as "the ring collapsed" rather than a
+// surprise teleport.
+function drawBurrowCharge(cell) {
+    if (!renderSnake.length || !burrowChargeUntil) return;
+    const frac = Math.max(0, Math.min(1, (burrowChargeUntil - performance.now()) / BURROW_CHARGE_MS));
+    const hw = cell / 2;
+    const hx = renderSnake[0].x*cell+hw, hy = renderSnake[0].y*cell+hw;
+    ctx.save();
+    ctx.strokeStyle = `rgba(180,90,230,${0.55 + 0.35*(1-frac)})`;
+    ctx.lineWidth = Math.max(1.5, cell * 0.09);
+    ctx.beginPath();
+    ctx.arc(hx, hy, cell*0.4 + frac*cell*1.0, 0, Math.PI*2);
     ctx.stroke();
     ctx.restore();
 }

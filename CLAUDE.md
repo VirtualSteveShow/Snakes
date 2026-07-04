@@ -1,7 +1,7 @@
 # Snake Survivor — Project Notes for Claude
 
 **Last updated:** 2026-07-04
-**Status:** Active development. v1.82 deployed. Classic mode was removed — every run is the Vampire-Survivors-style roguelite: choose a difficulty, choose a snake character (each seeds a different starting ability), eat to gain XP, level up, pick from a growing pool of abilities (18 so far).
+**Status:** Active development. v1.84 deployed. Classic mode was removed — every run is the Vampire-Survivors-style roguelite: choose a difficulty, choose a snake character (each seeds a different starting ability), eat to gain XP, level up, pick from a growing pool of abilities (22 so far).
 **Rebrand note:** the game displays as "Snake Survivor" (title screen, page title, PWA manifest) as of this update. The GitHub repo, its URL, and the live Pages URL below are unchanged — still `Snakes` — since renaming those would risk breaking the live PWA scope/URL and wasn't part of the ask.
 
 ---
@@ -70,10 +70,10 @@ After every completed feature: `git add . && git commit -m "..." && git push`
 
 | What | Where | Current value |
 |------|-------|---------------|
-| `const VERSION` | `public/client.js` line 3 | `'v1.82'` |
-| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v82` |
-| script tag | `public/index.html` `<script src="client.js?v=N">` | `v82` |
-| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v83'` |
+| `const VERSION` | `public/client.js` line 3 | `'v1.84'` |
+| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v84` |
+| script tag | `public/index.html` `<script src="client.js?v=N">` | `v84` |
+| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v85'` |
 
 **Note:** all asset paths in `index.html`, `manifest.json`, `sw.js`, and `client.js` must stay **relative** (no leading `/`) — GitHub Pages serves this repo from `/Snakes/`, not domain root.
 
