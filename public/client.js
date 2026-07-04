@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.82';
+const VERSION = 'v1.83';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -597,6 +597,8 @@ let ironScalesUntil = 0;       // performance.now() deadline — Iron Scales' po
 let lastEatCell    = null;     // {x,y} of the last pickup — Chain Reaction's proximity check
 let chainCombo     = 1;        // current Chain Reaction multiplier
 let foodIsBig      = false;    // Big Fish — this spawn of `food` is oversized/worth more
+let magnetPulls    = [];       // {x0, y0, born, type} — purely visual, one per Magnet grab (see drawMagnetPulls)
+const MAGNET_PULL_MS = 220;
 let echoFood         = null;   // Echo's periodically-spawned duplicate pickup
 let echoFoodType     = 'apple';
 let echoFoodSpawnTime = 0;
@@ -2013,6 +2015,7 @@ function startGame() {
 
     xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0; levelUpPendingAt = 0;
     rattleUntil = 0; phaseUntil = 0; ironScalesUntil = 0; lastEatCell = null; chainCombo = 1; foodIsBig = false;
+    magnetPulls = [];
     echoFood = null; echoFoodType = 'apple'; echoFoodSpawnTime = 0;
     abilityLevels = {
         sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
@@ -2164,10 +2167,15 @@ function tick() {
         }
         if (abilityLevels.magnet > 0) {
             const mr = ABILITY_CFG.magnet.radius[abilityLevels.magnet - 1];
-            for (const [obj, respawn] of [[food, spawnFood], [bonusFood, spawnBonusFood], [echoFood, clearEchoFood]]) {
+            for (const [obj, respawn, type] of [[food, spawnFood, foodType], [bonusFood, spawnBonusFood, bonusFoodType], [echoFood, clearEchoFood, echoFoodType]]) {
                 if (!obj) continue;
                 const d = Math.max(Math.abs(obj.x - snake[0].x), Math.abs(obj.y - snake[0].y));
-                if (d > 0 && d <= mr) collectFoodAt(obj.x, obj.y, obj, respawn, obj === food);
+                if (d > 0 && d <= mr) {
+                    const gx = obj.x*cell+cell/2, gy = obj.y*cell+cell/2;
+                    if (collectFoodAt(obj.x, obj.y, obj, respawn, obj === food)) {
+                        magnetPulls.push({ x0: gx, y0: gy, born: performance.now(), type });
+                    }
+                }
             }
         }
         if (abilityLevels.sidekick > 0) {
@@ -2702,6 +2710,7 @@ function draw() {
     drawFly(cell);
     if (gameMode === 'advanced') {
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
+        if (magnetPulls.length) drawMagnetPulls(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
         if (tapAbilityReady()) drawTapReady(cell);
     }
@@ -3125,6 +3134,35 @@ function drawTongue(cell) {
     ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
     ctx.fillStyle = `rgba(255,60,60,${alpha})`;
     ctx.beginPath(); ctx.arc(tx, ty, 3, 0, Math.PI*2); ctx.fill();
+}
+
+// Magnet's grab is instant in game logic (collectFoodAt fires the moment food enters range —
+// see tick()) so this is purely cosmetic: each grab spawns a record of where the food used to
+// be, and every frame for MAGNET_PULL_MS we draw a shrinking, fading copy of that fruit
+// travelling from there to wherever the head currently is (eased quadratically so it looks
+// like it accelerates in, rather than drifting at a constant speed).
+function drawMagnetPulls(cell) {
+    const now = performance.now();
+    magnetPulls = magnetPulls.filter(m => now - m.born < MAGNET_PULL_MS);
+    if (!magnetPulls.length || !renderSnake.length) return;
+    const hx = renderSnake[0].x*cell+cell/2, hy = renderSnake[0].y*cell+cell/2;
+    for (const m of magnetPulls) {
+        const t = Math.min(1, (now - m.born) / MAGNET_PULL_MS);
+        const ease = t * t;
+        const x = m.x0 + (hx - m.x0) * ease;
+        const y = m.y0 + (hy - m.y0) * ease;
+        const r = (cell/2 - 1.5) * (1 - 0.45 * t);
+        ctx.save();
+        ctx.globalAlpha = 1 - t * 0.35;
+        switch (m.type) {
+            case 'strawberry': drawStrawberry(x, y, r); break;
+            case 'watermelon': drawWatermelon(x, y, r); break;
+            case 'cherry':     drawCherry(x, y, r);     break;
+            case 'grape':      drawGrape(x, y, r);      break;
+            default:           drawApple(x, y, r);      break;
+        }
+        ctx.restore();
+    }
 }
 
 // A scaled-down version of the main snake's own look (body stroke + black outline + head

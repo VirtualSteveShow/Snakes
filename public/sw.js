@@ -1,4 +1,4 @@
-const CACHE = 'snakes-v83';
+const CACHE = 'snakes-v84';
 // HTML is not pre-cached — always fetched fresh from network
 const ASSETS = ['style.css', 'client.js', 'manifest.json', 'gameover.wav', 'music.json'];
 
