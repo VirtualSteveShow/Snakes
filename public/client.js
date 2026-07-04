@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.73';
+const VERSION = 'v1.74';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -597,6 +597,7 @@ let foodIsBig      = false;    // Big Fish — this spawn of `food` is oversized
 let echoFood         = null;   // Echo's periodically-spawned duplicate pickup
 let echoFoodType     = 'apple';
 let echoFoodSpawnTime = 0;
+let pendingGrowth = 0;  // credits for growth that couldn't happen via the normal unshift-this-tick path (see collectFoodAt)
 let tongue         = null;     // {ex,ey} tongue endpoint while visible
 let tongueVisUntil = 0;        // performance.now() deadline for tongue visual
 let babySnake      = [];       // {x,y}[] sidekick helper segments
@@ -1226,7 +1227,16 @@ function gainXP(n) {
         levelUpQueue++;
     }
     updateAdvancedHUD();
-    if (levelUpQueue > 0 && !levelUpOpen) showNextLevelUp();
+    requestLevelUp();
+}
+
+// A brief pause before the level-up screen actually freezes the game — so the eat/score-pop
+// moment that triggered it registers first instead of the screen instantly cutting away.
+const LEVEL_UP_DELAY = 500;
+let levelUpPendingAt = 0; // performance.now() deadline, 0 = nothing scheduled
+function requestLevelUp() {
+    if (levelUpQueue <= 0 || levelUpOpen || levelUpPendingAt) return;
+    levelUpPendingAt = performance.now() + LEVEL_UP_DELAY;
 }
 
 function rollAbilityChoices() {
@@ -1274,7 +1284,7 @@ function pickAbility(key) {
     document.getElementById('levelup-overlay').classList.add('hidden');
     levelUpOpen = false;
     lastTick = performance.now();
-    if (levelUpQueue > 0) showNextLevelUp();
+    requestLevelUp();
 }
 
 function renderLevelUp() {
@@ -1298,11 +1308,17 @@ function renderLevelUp() {
 // Shared by the main snake (via tick()), Tongue, Sidekick, and Magnet — grants the same
 // reward as eating normally without requiring the main snake's body to occupy the cell.
 // foodObj/respawnFn let this work against either the main food or bonusFood.
-function collectFoodAt(x, y, foodObj, respawnFn) {
+// grows: true only when foodObj is the main `food` — the snake's head isn't physically on
+// this cell (Tongue/Magnet grabbed it from a distance), so growth can't happen via the usual
+// "unshift and don't pop" this tick. Instead it queues a pendingGrowth credit, consumed on a
+// later tick's normal movement (skip popping the tail once) — see tick(). bonusFood/echoFood
+// never grow the snake, by design, regardless of this flag.
+function collectFoodAt(x, y, foodObj, respawnFn, grows) {
     if (!foodObj || x !== foodObj.x || y !== foodObj.y) return false;
     score += 1; if (score > highScore) highScore = score;
     updateScoreDisplay(); sfxCoin(); vibrate(15);
     if (gameMode === 'advanced') { gainXP(chainMultiplier(x, y)); triggerIronScales(); }
+    if (grows) pendingGrowth++;
     respawnFn();
     return true;
 }
@@ -1358,7 +1374,7 @@ function activateTongue(level) {
         if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
         for (const [obj, respawn] of targets) {
             if (!obj || tx !== obj.x || ty !== obj.y) continue;
-            collectFoodAt(tx, ty, obj, respawn);
+            collectFoodAt(tx, ty, obj, respawn, obj === food);
             tongue = { ex: tx, ey: ty };
             tongueVisUntil = performance.now() + 380;
             abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
@@ -1685,7 +1701,7 @@ function startGame() {
     enterSlideX = -canvas.width;
     enterStart  = performance.now();
 
-    xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0;
+    xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0; levelUpPendingAt = 0;
     rattleUntil = 0; phaseUntil = 0; ironScalesUntil = 0; lastEatCell = null; chainCombo = 1; foodIsBig = false;
     echoFood = null; echoFoodType = 'apple'; echoFoodSpawnTime = 0;
     abilityLevels = {
@@ -1696,6 +1712,7 @@ function startGame() {
     abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
     bonusFood = null;
+    pendingGrowth = 0;
     particles = []; scorePops = []; shakeMag = 0;
     document.getElementById('levelup-overlay').classList.add('hidden');
 
@@ -1796,7 +1813,10 @@ function tick() {
         digestingFood.push({ segIndex: 0 });
         if (gameMode === 'advanced') { gainXP(bigMult * chainMultiplier(nx, ny)); triggerIronScales(); }
         if (!fly && Math.random() < FLY_SPAWN_CHANCE * (abilityLevels.keenscent > 0 ? ABILITY_CFG.keenscent.spawnMult[abilityLevels.keenscent-1] : 1)) spawnFly();
-    } else if (!flyEaten) { snake.pop(); }
+    } else if (!flyEaten) {
+        if (pendingGrowth > 0) pendingGrowth--;
+        else snake.pop();
+    }
     digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
 
     // The whole body disturbs grass as it glides through, not just the leading edge —
@@ -1826,7 +1846,7 @@ function tick() {
             for (const [obj, respawn] of [[food, spawnFood], [bonusFood, spawnBonusFood], [echoFood, clearEchoFood]]) {
                 if (!obj) continue;
                 const d = Math.max(Math.abs(obj.x - snake[0].x), Math.abs(obj.y - snake[0].y));
-                if (d > 0 && d <= mr) collectFoodAt(obj.x, obj.y, obj, respawn);
+                if (d > 0 && d <= mr) collectFoodAt(obj.x, obj.y, obj, respawn, obj === food);
             }
         }
         if (abilityLevels.sidekick > 0) {
@@ -2252,6 +2272,10 @@ function drawFly(cell) {
 // ── Loop ──────────────────────────────────────────────────────
 function loop(now) {
     requestAnimationFrame(loop);
+    if (gameState === 'running' && levelUpPendingAt && now >= levelUpPendingAt) {
+        levelUpPendingAt = 0;
+        showNextLevelUp();
+    }
     if (gameState === 'running' && !levelUpOpen) {
         if (lungeQueue > 0) {
             if (now - lastTick >= 35) {
@@ -2655,9 +2679,11 @@ function drawEyes(head, cell) {
 function drawStart(size, cell) {
     ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,size,size);
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle='#44ff44'; ctx.font=`bold ${Math.floor(cell*2)}px monospace`;
-    ctx.fillText('SNAKE', size/2, size*0.32);
-    let y = 0.45;
+    ctx.fillStyle='#44ff44'; ctx.font=`bold ${Math.floor(cell*1.5)}px monospace`;
+    ctx.fillText('SNAKE', size/2, size*0.26);
+    ctx.font=`bold ${Math.floor(cell*1.15)}px monospace`;
+    ctx.fillText('SURVIVOR', size/2, size*0.35);
+    let y = 0.47;
     if (gameMode === 'advanced') {
         ctx.fillStyle='#44aaff'; ctx.font=`${Math.floor(cell*0.55)}px monospace`;
         ctx.fillText('◆ ADVANCED MODE', size/2, size*y); y += 0.09;

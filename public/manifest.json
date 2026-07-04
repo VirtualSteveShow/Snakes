@@ -1,7 +1,7 @@
 {
-  "name": "Snakes",
-  "short_name": "Snakes",
-  "description": "Snake game with multiple playable characters",
+  "name": "Snake Survivor",
+  "short_name": "Snake Survivor",
+  "description": "Roguelite Snake — survive, level up, and pick abilities as you grow",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
