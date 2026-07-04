@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Snake Survivor">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=81">
+    <link rel="stylesheet" href="style.css?v=82">
     <title>Snake Survivor</title>
 </head>
 <body>
@@ -65,12 +65,7 @@
             <button id="btn-easy"   class="toggle-btn off" style="padding:5px 12px">EASY</button>
             <button id="btn-normal" class="toggle-btn"     style="padding:5px 12px">NORM</button>
         </div>
-        <div class="opt-row">
-            <span class="opt-label">MODE</span>
-            <button id="btn-classic"  class="toggle-btn"     style="padding:5px 10px">CLASS</button>
-            <button id="btn-advanced" class="toggle-btn off" style="padding:5px 10px">ADV</button>
-        </div>
-        <div class="opt-row" id="row-char-select" style="display:none">
+        <div class="opt-row" id="row-char-select">
             <span class="opt-label">SNAKE</span>
             <button id="btn-char-select" class="toggle-btn off" style="flex:1;padding:5px 10px">Racer ▸</button>
         </div>
@@ -157,13 +152,30 @@
         </div>
     </div>
 
-    <!-- Character select overlay -->
+    <!-- Difficulty select overlay: step 1 of the pre-game start flow -->
+    <div id="difficulty-overlay" class="game-overlay hidden">
+        <div class="overlay-box">
+            <div class="overlay-title">CHOOSE DIFFICULTY</div>
+            <button id="btn-flow-easy" class="overlay-btn diff-choice">
+                <span class="diff-choice-name">EASY</span>
+                <span class="diff-choice-sub">Smaller board, slower pace</span>
+            </button>
+            <button id="btn-flow-normal" class="overlay-btn diff-choice">
+                <span class="diff-choice-name">NORMAL</span>
+                <span class="diff-choice-sub">Standard board and speed</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Character select overlay: step 2 of the pre-game start flow, also reused as a
+         standalone options-panel entry for changing your default pick (see openCharacterOverlay) -->
     <div id="character-overlay" class="game-overlay hidden">
         <div class="overlay-box">
             <div class="overlay-title">CHOOSE YOUR SNAKE</div>
             <div id="char-list"></div>
             <div id="char-desc"></div>
             <button id="btn-char-close" class="overlay-btn secondary">Done</button>
+            <button id="btn-char-start" class="overlay-btn hidden">START ▶</button>
         </div>
     </div>
 
@@ -197,7 +209,7 @@
         </div>
     </div>
 
-    <script src="client.js?v=81"></script>
+    <script src="client.js?v=82"></script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>

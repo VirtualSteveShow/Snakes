@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.81';
+const VERSION = 'v1.82';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -12,7 +12,10 @@ let CELL_COUNT = DIFFICULTIES[difficulty].cells;
 let BASE_MS    = DIFFICULTIES[difficulty].baseMs;
 let MIN_MS     = DIFFICULTIES[difficulty].minMs;
 let SPEED_STEP = DIFFICULTIES[difficulty].speedStep;
-let gameMode   = localStorage.getItem('snake_mode') || 'classic';
+// Classic mode was removed (v1.82) — every run is the ability/leveling roguelite now.
+// Kept as a constant rather than ripped out everywhere so the many `gameMode === 'advanced'`
+// checks scattered through tick()/loop()/draw() keep working unchanged.
+const gameMode = 'advanced';
 
 function getScoreKey() { return `${gameMode}-${difficulty}`; }
 
@@ -1212,33 +1215,67 @@ function onFsChange() {
     document.getElementById('btn-fs').textContent = inFs ? '⊠' : '⛶';
 }
 
-// ── Mode management ───────────────────────────────────────────
-function setMode(m) {
-    gameMode = m;
-    localStorage.setItem('snake_mode', m);
-    syncModeBtns();
-    loadProfileHighScore();
-    if (gameState === 'running' || gameState === 'paused') { gameState = 'start'; stopMusic(); updatePauseBtn(); }
-    updateAdvancedUI();
-}
-
-function syncModeBtns() {
-    const cl  = document.getElementById('btn-classic');
-    const adv = document.getElementById('btn-advanced');
-    if (cl)  cl.classList.toggle('off',  gameMode !== 'classic');
-    if (adv) adv.classList.toggle('off', gameMode !== 'advanced');
-}
-
 function updateAdvancedUI() {
-    const hud     = document.getElementById('adv-hud');
-    const abHud   = document.getElementById('ability-hud');
-    const charRow = document.getElementById('row-char-select');
-    const isAdv   = gameMode === 'advanced';
-    if (hud)     hud.classList.toggle('visible', isAdv);
-    if (abHud)   abHud.classList.toggle('visible', isAdv);
-    if (charRow) charRow.style.display = isAdv ? 'flex' : 'none';
-    if (isAdv) { updateAdvancedHUD(); updateAbilityHud(); }
+    document.getElementById('adv-hud')?.classList.add('visible');
+    document.getElementById('ability-hud')?.classList.add('visible');
+    updateAdvancedHUD();
+    updateAbilityHud();
     resize();
+}
+
+// ── Pre-game start flow ─────────────────────────────────────────
+// Title/game-over/win screens no longer start a run directly — tapping/swiping/Enter opens
+// this instead: pick a difficulty, then pick a snake (which seeds that character's ability),
+// then the run actually begins. `startFlowOpen` gates the same document-level touch/key
+// handlers that `optionsOpen`/`levelUpOpen` already gate, so background taps during either
+// step don't leak through to gameplay input.
+let startFlowOpen = false;
+
+function beginStartFlow() {
+    ensureAudio();
+    openDifficultyOverlay();
+}
+
+function openDifficultyOverlay() {
+    startFlowOpen = true;
+    syncDiffFlowBtns();
+    document.getElementById('difficulty-overlay').classList.remove('hidden');
+}
+
+function closeDifficultyOverlay() {
+    document.getElementById('difficulty-overlay').classList.add('hidden');
+}
+
+function syncDiffFlowBtns() {
+    document.getElementById('btn-flow-easy')?.classList.toggle('selected', difficulty === 'easy');
+    document.getElementById('btn-flow-normal')?.classList.toggle('selected', difficulty === 'normal');
+}
+
+function chooseDifficultyAndAdvance(d) {
+    setDifficulty(d);
+    closeDifficultyOverlay();
+    openCharacterOverlay(true);
+}
+
+// Character-select overlay serves two purposes: a mandatory step in the start flow (Start
+// button, begins the run) and a standalone options-panel entry for changing your default pick
+// without playing (Done button, just closes). `flow` picks which button shows.
+function openCharacterOverlay(flow) {
+    startFlowOpen = flow;
+    renderCharacterList();
+    document.getElementById('btn-char-close')?.classList.toggle('hidden', flow);
+    document.getElementById('btn-char-start')?.classList.toggle('hidden', !flow);
+    document.getElementById('character-overlay').classList.remove('hidden');
+}
+
+function closeCharacterOverlay() {
+    document.getElementById('character-overlay').classList.add('hidden');
+    startFlowOpen = false;
+}
+
+function startFromCharacterOverlay() {
+    closeCharacterOverlay();
+    startGame();
 }
 
 // ── Character select ───────────────────────────────────────────
@@ -1701,19 +1738,13 @@ function initOptions() {
     document.getElementById('btn-normal').addEventListener('click', () => setDifficulty('normal'));
     syncDiffBtns();
 
-    document.getElementById('btn-classic').addEventListener('click',  () => setMode('classic'));
-    document.getElementById('btn-advanced').addEventListener('click', () => setMode('advanced'));
-    syncModeBtns();
+    document.getElementById('btn-flow-easy')?.addEventListener('click', () => chooseDifficultyAndAdvance('easy'));
+    document.getElementById('btn-flow-normal')?.addEventListener('click', () => chooseDifficultyAndAdvance('normal'));
 
     syncCharSelectBtn();
-    const charOverlay = document.getElementById('character-overlay');
-    document.getElementById('btn-char-select')?.addEventListener('click', () => {
-        renderCharacterList();
-        if (charOverlay) charOverlay.classList.remove('hidden');
-    });
-    document.getElementById('btn-char-close')?.addEventListener('click', () => {
-        if (charOverlay) charOverlay.classList.add('hidden');
-    });
+    document.getElementById('btn-char-select')?.addEventListener('click', () => openCharacterOverlay(false));
+    document.getElementById('btn-char-close')?.addEventListener('click', closeCharacterOverlay);
+    document.getElementById('btn-char-start')?.addEventListener('click', startFromCharacterOverlay);
 
     const bHandR = document.getElementById('btn-hand-r');
     const bHandL = document.getElementById('btn-hand-l');
@@ -1879,10 +1910,11 @@ function onKey(e) {
             if (optionsOpen) { toggleOptions(); e.preventDefault(); } break;
         case ' ': case 'Enter':
             if (optionsOpen) { toggleOptions(); e.preventDefault(); break; }
+            if (startFlowOpen) { e.preventDefault(); break; }
             if (gameState === 'entering' || gameState === 'countdown') { e.preventDefault(); break; }
             if (gameState === 'running' || gameState === 'paused') { togglePause(); e.preventDefault(); break; }
             if (gameOverLocked()) { e.preventDefault(); break; }
-            ensureAudio(); startGame(); e.preventDefault();
+            beginStartFlow(); e.preventDefault();
             break;
     }
 }
@@ -1911,6 +1943,7 @@ function setupTouch() {
         holdBoost = false;
         if (e.target.closest('button') || e.target.closest('input')) return;
         if (optionsOpen) { toggleOptions(); return; }
+        if (startFlowOpen) return;
         if (gameOverLocked()) return;
         const dx = e.changedTouches[0].clientX - sx;
         const dy = e.changedTouches[0].clientY - sy;
@@ -1918,8 +1951,7 @@ function setupTouch() {
         if (gameState === 'paused') { togglePause(); }
         else if (gameState === 'countdown' || gameState === 'entering') { /* no-op */ }
         else if (gameState !== 'running') {
-            ensureAudio(); startGame();
-            if (dist >= SWIPE_MIN) applySwipe(dx, dy);
+            beginStartFlow();
         } else if (dist >= SWIPE_MIN) {
             applySwipe(dx, dy);
         } else {
@@ -2986,10 +3018,6 @@ function drawStart(size, cell) {
     ctx.font=`bold ${Math.floor(cell*1.15)}px monospace`;
     ctx.fillText('SURVIVOR', size/2, size*0.35);
     let y = 0.47;
-    if (gameMode === 'advanced') {
-        ctx.fillStyle='#44aaff'; ctx.font=`${Math.floor(cell*0.55)}px monospace`;
-        ctx.fillText('◆ ADVANCED MODE', size/2, size*y); y += 0.09;
-    }
     const prof = getCurrentProfile();
     if (prof) {
         ctx.fillStyle='#555'; ctx.font=`${Math.floor(cell*0.55)}px monospace`;
@@ -2999,12 +3027,9 @@ function drawStart(size, cell) {
         ctx.fillStyle='#aaa'; ctx.font=`${Math.floor(cell*0.7)}px monospace`;
         ctx.fillText(`Best: ${highScore}`, size/2, size*y); y += 0.09;
     }
-    ctx.fillStyle = difficulty === 'easy' ? '#44ffaa' : '#777';
-    ctx.font=`${Math.floor(cell*0.55)}px monospace`;
-    ctx.fillText(difficulty === 'easy' ? '● EASY' : '● NORMAL', size/2, size*y); y += 0.10;
     ctx.fillStyle='#555'; ctx.font=`${Math.floor(cell*0.55)}px monospace`;
-    ctx.fillText('Swipe or tap to start', size/2, size*y); y += 0.08;
-    ctx.fillText('Arrow keys on desktop', size/2, size*y);
+    ctx.fillText('Swipe or tap to play', size/2, size*y); y += 0.08;
+    ctx.fillText('Arrow keys / Enter on desktop', size/2, size*y);
 }
 
 function drawGameOver(size, cell) {

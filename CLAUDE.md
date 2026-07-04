@@ -1,14 +1,14 @@
 # Snake Survivor — Project Notes for Claude
 
 **Last updated:** 2026-07-04
-**Status:** Active development. v1.73 deployed. Classic mode is simple/no-abilities. Advanced mode is a Vampire-Survivors-style roguelite: eat to gain XP, level up, pick from a growing pool of abilities (19 so far).
+**Status:** Active development. v1.82 deployed. Classic mode was removed — every run is the Vampire-Survivors-style roguelite: choose a difficulty, choose a snake character (each seeds a different starting ability), eat to gain XP, level up, pick from a growing pool of abilities (18 so far).
 **Rebrand note:** the game displays as "Snake Survivor" (title screen, page title, PWA manifest) as of this update. The GitHub repo, its URL, and the live Pages URL below are unchanged — still `Snakes` — since renaming those would risk breaking the live PWA scope/URL and wasn't part of the ask.
 
 ---
 
 ## What This Is
 
-Browser-based Snake roguelite ("Snake Survivor"). Portrait mode. Bottom portion of the phone screen is a swipe zone. Classic mode is plain Snake. Advanced mode layers on an XP/level-up system (see `ABILITY_CFG` in `public/client.js`) — Sprint (hold) and Dash (tap) are the only two manually-triggered abilities (one per gesture slot, mutually exclusive with their slot-mates), everything else auto-triggers or is passive once picked. Anyone can play via a link — no install required. PWA-capable.
+Browser-based Snake roguelite ("Snake Survivor"). Portrait mode. Bottom portion of the phone screen is a swipe zone. Every run starts with a pre-game flow: title screen -> choose difficulty (Easy/Normal) -> choose a snake character (one per ability, seeds that ability at level 1) -> game starts. From there it's an XP/level-up system (see `ABILITY_CFG` in `public/client.js`) — Sprint (hold) and Dash (tap) are the only two manually-triggered abilities (one per gesture slot, mutually exclusive with their slot-mates), everything else auto-triggers or is passive once picked. Anyone can play via a link — no install required. PWA-capable.
 
 **GitHub:** https://github.com/VirtualSteveShow/Snakes (public — required for GitHub Pages; repo name unchanged by the rebrand)
 **Hosting:** GitHub Pages, auto-deploys on `git push master` via `.github/workflows/pages.yml` — live at https://virtualsteveshow.github.io/Snakes/
@@ -70,10 +70,10 @@ After every completed feature: `git add . && git commit -m "..." && git push`
 
 | What | Where | Current value |
 |------|-------|---------------|
-| `const VERSION` | `public/client.js` line 3 | `'v1.74'` |
-| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v74` |
-| script tag | `public/index.html` `<script src="client.js?v=N">` | `v74` |
-| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v75'` |
+| `const VERSION` | `public/client.js` line 3 | `'v1.82'` |
+| stylesheet link | `public/index.html` `<link rel="stylesheet" href="style.css?v=N">` | `v82` |
+| script tag | `public/index.html` `<script src="client.js?v=N">` | `v82` |
+| SW cache key | `public/sw.js` `const CACHE` | `'snakes-v83'` |
 
 **Note:** all asset paths in `index.html`, `manifest.json`, `sw.js`, and `client.js` must stay **relative** (no leading `/`) — GitHub Pages serves this repo from `/Snakes/`, not domain root.
 

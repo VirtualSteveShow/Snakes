@@ -221,6 +221,7 @@ input[type="range"] {
     z-index: 200; padding: 16px; box-sizing: border-box;
 }
 .game-overlay.hidden { display: none; }
+.hidden { display: none; }
 .overlay-box {
     background: #161616; border: 1px solid #2a2a2a; border-radius: 16px;
     padding: 24px 20px; width: min(320px, 100%);
@@ -283,6 +284,15 @@ input[type="range"] {
     padding: 8px 2px 2px; border-top: 1px solid #2a2a2a;
 }
 #char-desc .char-desc-name { color: #44ff44; font-weight: bold; font-size: 12px; display: block; margin-bottom: 3px; }
+
+/* Difficulty select (start flow, step 1) */
+.diff-choice {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 14px 12px;
+}
+.diff-choice-name { font-size: 15px; letter-spacing: 3px; }
+.diff-choice-sub { font-size: 10px; font-weight: normal; letter-spacing: 0.5px; color: #225522; }
+.diff-choice.selected { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Leaderboard list */
 #lb-list { width: 100%; }
