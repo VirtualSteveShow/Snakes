@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.77';
+const VERSION = 'v1.78';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -639,8 +639,8 @@ const ABILITY_CFG = {
         ranges:    [4, 7, 11],
     },
     slowtime: {
-        name: 'SLOW TIME',
-        descs: ['Periodic 3s slow-mo', 'Periodic 5s slow-mo', 'Periodic 7s slow-mo'],
+        name: 'SLOW TIME', slot: 'tap',
+        descs: ['Tap for 3s slow-mo', 'Tap for 5s slow-mo', 'Tap for 7s slow-mo'],
         cooldowns: [12000, 10000, 8000],
         durations: [3000, 5000, 7000],
     },
@@ -1332,12 +1332,15 @@ function rollAbilityChoices() {
         const lvl = abilityLevels[k];
         if (lvl >= 3) return false;
         if (lvl > 0) return true; // always eligible to upgrade what you already own
-        // Unowned — must clear the distinct-ability cap and slot-exclusivity rules to appear
-        // as a *new* pick (see project_ability_slot_rules memory).
-        if (atCap) return false;
         const slot = ABILITY_CFG[k].slot;
-        if (slot === 'hold' && holdTaken) return false;
-        if (slot === 'tap'  && tapTaken)  return false;
+        // An unowned hold/tap ability whose slot is already filled is offered as a
+        // *replacement* for whoever's there (see pickAbility) rather than excluded — a
+        // lateral swap, not a net-new pick, so it isn't blocked by the distinct-ability cap.
+        if (slot === 'hold' && holdTaken) return true;
+        if (slot === 'tap'  && tapTaken)  return true;
+        // Otherwise a genuinely new pick — must clear the distinct-ability cap (see
+        // project_ability_slot_rules memory).
+        if (atCap) return false;
         return true;
     });
     for (let i = pool.length - 1; i > 0; i--) {
@@ -1360,6 +1363,13 @@ function showNextLevelUp() {
 }
 
 function pickAbility(key) {
+    const cfg = ABILITY_CFG[key];
+    if (cfg.slot && abilityLevels[key] === 0) {
+        // Picking a brand-new hold/tap ability when that slot's already filled replaces
+        // whoever's there (see rollAbilityChoices) — only one can ever occupy a slot.
+        const replaced = ABILITY_POOL.find(k => k !== key && ABILITY_CFG[k].slot === cfg.slot && abilityLevels[k] > 0);
+        if (replaced) abilityLevels[replaced] = 0;
+    }
     abilityLevels[key]++;
     const level = abilityLevels[key];
     if (key === 'sidekick' && level === 1) { activateBabySnake(level); spawnBonusFood(); }
@@ -1416,6 +1426,14 @@ function renderLevelUp() {
         lv.textContent = level === 0 ? 'NEW' : `Lv ${level} → ${level + 1}`;
         const ds = document.createElement('div'); ds.className = 'lvlup-desc'; ds.textContent = cfg.descs[level];
         card.append(nm, lv, ds);
+        if (level === 0 && cfg.slot) {
+            const replaced = ABILITY_POOL.find(k => k !== key && ABILITY_CFG[k].slot === cfg.slot && abilityLevels[k] > 0);
+            if (replaced) {
+                const rp = document.createElement('div'); rp.className = 'lvlup-replaces';
+                rp.textContent = `⟲ Replaces ${ABILITY_CFG[replaced].name}`;
+                card.appendChild(rp);
+            }
+        }
         card.onclick = () => pickAbility(key);
         list.appendChild(card);
     }
@@ -1504,6 +1522,16 @@ function activateTongue(level) {
 function activateSlowTime(level) {
     slowUntil = performance.now() + ABILITY_CFG.slowtime.durations[level - 1];
     abilityCooldowns.slowtime = slowUntil + ABILITY_CFG.slowtime.cooldowns[level - 1];
+}
+
+// Slow Time — tap-slot (was auto-cycle). Same activateSlowTime()/cooldown math as before;
+// now the player has to actually call for it instead of it firing itself.
+function tryActivateSlowTime() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.slowtime === 0) return;
+    if (performance.now() < abilityCooldowns.slowtime) return;
+    activateSlowTime(abilityLevels.slowtime);
+    sfxLunge(); vibrate(15);
 }
 
 function activateBabySnake(level) {
@@ -2007,9 +2035,6 @@ function tick() {
         if (abilityLevels.tongue > 0 && performance.now() >= abilityCooldowns.tongue) {
             activateTongue(abilityLevels.tongue);
         }
-        if (abilityLevels.slowtime > 0 && performance.now() >= abilityCooldowns.slowtime) {
-            activateSlowTime(abilityLevels.slowtime);
-        }
         if (abilityLevels.magnet > 0) {
             const mr = ABILITY_CFG.magnet.radius[abilityLevels.magnet - 1];
             for (const [obj, respawn] of [[food, spawnFood], [bonusFood, spawnBonusFood], [echoFood, clearEchoFood]]) {
@@ -2154,6 +2179,7 @@ function tapAbilityReady() {
     if (abilityLevels.nimbletail > 0)    return now >= abilityCooldowns.nimbletail;
     if (abilityLevels.rattle > 0)        return now >= abilityCooldowns.rattle;
     if (abilityLevels.phasetail > 0)     return now >= abilityCooldowns.phasetail;
+    if (abilityLevels.slowtime > 0)      return now >= abilityCooldowns.slowtime;
     return false;
 }
 
@@ -2240,11 +2266,12 @@ function tryPhaseTail() {
 // Tap-slot dispatcher — only one tap ability can ever be owned at a time (see
 // rollAbilityChoices' slot-exclusivity rule), so at most one branch here ever does anything.
 function tryTapAbility() {
-    if (abilityLevels.dash > 0)          { tryLunge();         return; }
-    if (abilityLevels.reversethrust > 0) { tryReverseThrust(); return; }
-    if (abilityLevels.nimbletail > 0)    { tryNimbleTail();    return; }
-    if (abilityLevels.rattle > 0)        { tryRattle();        return; }
-    if (abilityLevels.phasetail > 0)     { tryPhaseTail();     return; }
+    if (abilityLevels.dash > 0)          { tryLunge();           return; }
+    if (abilityLevels.reversethrust > 0) { tryReverseThrust();   return; }
+    if (abilityLevels.nimbletail > 0)    { tryNimbleTail();      return; }
+    if (abilityLevels.rattle > 0)        { tryRattle();          return; }
+    if (abilityLevels.phasetail > 0)     { tryPhaseTail();       return; }
+    if (abilityLevels.slowtime > 0)      { tryActivateSlowTime(); return; }
 }
 
 // ── Fly ───────────────────────────────────────────────────────
@@ -2559,6 +2586,7 @@ function draw() {
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
     drawTongueFlick(cell);
+    if (gameMode === 'advanced' && performance.now() < slowUntil) drawSlowTimeBar(cell);
     if (gameState === 'entering') ctx.restore();
     drawParticles('impact');
     drawScorePops(cell);
@@ -2944,6 +2972,30 @@ function drawTapReady(cell) {
     ctx.beginPath();
     ctx.arc(hx, hy, cell*0.85 + pulse*cell*0.12, 0, Math.PI*2);
     ctx.stroke();
+    ctx.restore();
+}
+
+// Slow Time's remaining-duration bar, shrinking above the head while active — the only cue
+// otherwise would be the game visibly running slower, which isn't obvious moment-to-moment.
+function drawSlowTimeBar(cell) {
+    if (!renderSnake.length) return;
+    const level = abilityLevels.slowtime;
+    if (level === 0) return;
+    const total  = ABILITY_CFG.slowtime.durations[level - 1];
+    const remain = slowUntil - performance.now();
+    const frac   = Math.max(0, Math.min(1, remain / total));
+    const hw = cell / 2;
+    const hx = renderSnake[0].x*cell + hw, hy = renderSnake[0].y*cell + hw;
+    const barW = cell * 1.6, barH = cell * 0.16;
+    const bx = hx - barW/2, by = hy - cell*1.15 - barH;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = '#44aaff';
+    ctx.fillRect(bx, by, barW * frac, barH);
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, barW, barH);
     ctx.restore();
 }
 
