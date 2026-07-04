@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.72';
+const VERSION = 'v1.73';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -587,27 +587,46 @@ let xpLevel        = 1;
 let levelUpQueue   = 0;        // pending level-up prompts not yet shown
 let levelUpOpen    = false;    // pauses tick()/input while a level-up card is up (like shopOpen did)
 let levelUpChoices = [];       // ability keys currently offered
-let armorCharges   = 0;        // remaining Armor charges (see tick()'s collision checks)
+let armorCharges   = 0;        // remaining Armor charges (see trySurviveCollision)
+let rattleUntil    = 0;        // performance.now() deadline — Rattle's one-hit grace window
+let phaseUntil     = 0;        // performance.now() deadline — Phase Tail's self-collision immunity
+let ironScalesUntil = 0;       // performance.now() deadline — Iron Scales' post-eat invincibility
+let lastEatCell    = null;     // {x,y} of the last pickup — Chain Reaction's proximity check
+let chainCombo     = 1;        // current Chain Reaction multiplier
+let foodIsBig      = false;    // Big Fish — this spawn of `food` is oversized/worth more
+let echoFood         = null;   // Echo's periodically-spawned duplicate pickup
+let echoFoodType     = 'apple';
+let echoFoodSpawnTime = 0;
 let tongue         = null;     // {ex,ey} tongue endpoint while visible
 let tongueVisUntil = 0;        // performance.now() deadline for tongue visual
 let babySnake      = [];       // {x,y}[] sidekick helper segments
 let babyUntil      = 0;        // performance.now() when the sidekick's current cycle ends (auto-respawns)
 let slowUntil      = 0;        // performance.now() when slow-time expires
 
-let abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0 }; // 0=locked, 1/2/3
-let abilityCooldowns = { dash:0, tongue:0, slowtime:0 }; // ready-at timestamp — only the 3 cooldown-based abilities need this
+let abilityLevels = {
+    sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
+    reversethrust:0, nimbletail:0, rattle:0, phasetail:0, pitsense:0,
+    echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
+}; // 0=locked, 1/2/3
+let abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
+
+// Only one ability can occupy the hold slot, and only one the tap slot, for the whole run —
+// there are exactly two free input gestures (hold, tap), no dedicated buttons. Auto/passive
+// abilities have no `slot` and aren't subject to this, only to MAX_ABILITY_SLOTS below. See
+// rollAbilityChoices().
+const MAX_ABILITY_SLOTS = 6; // distinct abilities a single run can ever pick up, Vampire-Survivors-style
 
 function xpForLevel(l) { return 5 + (l - 1) * 3; }
 
 const ABILITY_CFG = {
     sprint: {
-        name: 'SPRINT',
+        name: 'SPRINT', slot: 'hold',
         descs: ['Hold to move faster', 'Hold for more speed', 'Hold for max speed'],
         floorMult: [0.85, 0.70, 0.55], // MIN_MS floor multiplier
         factor:    [0.70, 0.58, 0.45], // tickMs multiplier while held
     },
     dash: {
-        name: 'DASH',
+        name: 'DASH', slot: 'tap',
         descs: ['Tap to dash to food (short range)', 'Longer range, shorter cooldown', 'Max range, fastest cooldown'],
         cooldowns: [4000, 2200, 800],
         maxRange:  [6, 12, 999],
@@ -644,6 +663,65 @@ const ABILITY_CFG = {
         descs: ['Slower, but +25% XP', 'Slower still, +50% XP', 'Slowest, +75% XP'],
         slowFactor: [1.08, 1.15, 1.22], // multiplies every tick interval — bigger = slower
         xpMult:     [1.25, 1.50, 1.75],
+    },
+    reversethrust: {
+        name: 'REVERSE THRUST', slot: 'tap',
+        descs: ['Tap to instantly flip 180°', 'Shorter cooldown', 'Shortest cooldown'],
+        cooldowns: [5000, 3000, 1500],
+    },
+    nimbletail: {
+        name: 'NIMBLE TAIL', slot: 'tap',
+        descs: ['Tap to hop your tail free of a tight spot', 'Shorter cooldown', 'Shortest cooldown'],
+        cooldowns: [6000, 3500, 1800],
+    },
+    rattle: {
+        name: 'RATTLE', slot: 'tap',
+        descs: ['Tap for a 1s window where the next hit is forgiven', '1.5s window', '2s window'],
+        cooldowns: [14000, 10000, 6000],
+        windows:   [1000, 1500, 2000],
+    },
+    phasetail: {
+        name: 'PHASE TAIL', slot: 'tap',
+        descs: ['Tap to phase through your own body for 2s', '3s phase', '4s phase'],
+        cooldowns: [16000, 12000, 8000],
+        durations: [2000, 3000, 4000],
+    },
+    pitsense: {
+        name: 'PIT SENSE', slot: 'hold',
+        descs: ['Hold to preview your next few moves', 'Longer preview', 'Longest preview'],
+        previewLen: [3, 5, 7], // cells of ghost trail shown
+    },
+    echo: {
+        name: 'ECHO',
+        descs: ['Periodically duplicates food elsewhere', 'More often', 'Most often'],
+        cooldowns: [14000, 10000, 7000],
+    },
+    bigfish: {
+        name: 'BIG FISH',
+        descs: ['Food occasionally spawns oversized, worth 3x', 'More often, worth 4x', 'Most often, worth 5x'],
+        chance: [0.12, 0.20, 0.30],
+        mult:   [3, 4, 5],
+    },
+    keenscent: {
+        name: 'KEEN SCENT',
+        descs: ['Flies spawn more often and linger longer', 'Even more often/longer', 'Most often/longest'],
+        spawnMult: [1.6, 2.2, 3.0],
+        lifeMult:  [1.3, 1.6, 2.0],
+    },
+    chainreaction: {
+        name: 'CHAIN REACTION',
+        descs: ['Eating near your last pickup builds a combo (up to x3)', 'Up to x4', 'Up to x5'],
+        maxCombo: [3, 4, 5],
+    },
+    efficientdigestion: {
+        name: 'EFFICIENT DIGESTION',
+        descs: ['+15% XP from everything', '+30% XP', '+50% XP'],
+        xpMult: [1.15, 1.30, 1.50],
+    },
+    ironscales: {
+        name: 'IRON SCALES',
+        descs: ['0.6s invincible after eating', '0.9s invincible', '1.2s invincible'],
+        durations: [600, 900, 1200],
     },
 };
 const ABILITY_POOL = Object.keys(ABILITY_CFG);
@@ -1140,6 +1218,7 @@ function updateAdvancedHUD() {
 // ── XP / level-up ─────────────────────────────────────────────
 function gainXP(n) {
     if (abilityLevels.ring > 0) n *= ABILITY_CFG.ring.xpMult[abilityLevels.ring - 1];
+    if (abilityLevels.efficientdigestion > 0) n *= ABILITY_CFG.efficientdigestion.xpMult[abilityLevels.efficientdigestion - 1];
     xp += n;
     while (xp >= xpForLevel(xpLevel)) {
         xp -= xpForLevel(xpLevel);
@@ -1151,7 +1230,23 @@ function gainXP(n) {
 }
 
 function rollAbilityChoices() {
-    const pool = ABILITY_POOL.filter(k => abilityLevels[k] < 3);
+    const ownedCount = ABILITY_POOL.filter(k => abilityLevels[k] > 0).length;
+    const atCap      = ownedCount >= MAX_ABILITY_SLOTS;
+    const holdTaken  = ABILITY_POOL.some(k => abilityLevels[k] > 0 && ABILITY_CFG[k].slot === 'hold');
+    const tapTaken   = ABILITY_POOL.some(k => abilityLevels[k] > 0 && ABILITY_CFG[k].slot === 'tap');
+
+    const pool = ABILITY_POOL.filter(k => {
+        const lvl = abilityLevels[k];
+        if (lvl >= 3) return false;
+        if (lvl > 0) return true; // always eligible to upgrade what you already own
+        // Unowned — must clear the distinct-ability cap and slot-exclusivity rules to appear
+        // as a *new* pick (see project_ability_slot_rules memory).
+        if (atCap) return false;
+        const slot = ABILITY_CFG[k].slot;
+        if (slot === 'hold' && holdTaken) return false;
+        if (slot === 'tap'  && tapTaken)  return false;
+        return true;
+    });
     for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -1207,28 +1302,63 @@ function collectFoodAt(x, y, foodObj, respawnFn) {
     if (!foodObj || x !== foodObj.x || y !== foodObj.y) return false;
     score += 1; if (score > highScore) highScore = score;
     updateScoreDisplay(); sfxCoin(); vibrate(15);
-    if (gameMode === 'advanced') gainXP(1);
+    if (gameMode === 'advanced') { gainXP(chainMultiplier(x, y)); triggerIronScales(); }
     respawnFn();
     return true;
 }
+
+// Chain Reaction's combo depends on the eaten cell's position, which gainXP() doesn't know —
+// call this at the moment of eating and multiply its result into the XP amount passed in.
+function chainMultiplier(x, y) {
+    if (abilityLevels.chainreaction === 0) return 1;
+    const maxCombo = ABILITY_CFG.chainreaction.maxCombo[abilityLevels.chainreaction - 1];
+    const CHAIN_RADIUS = 5;
+    if (lastEatCell && Math.abs(x - lastEatCell.x) + Math.abs(y - lastEatCell.y) <= CHAIN_RADIUS) {
+        chainCombo = Math.min(maxCombo, chainCombo + 1);
+    } else {
+        chainCombo = 1;
+    }
+    lastEatCell = { x, y };
+    return chainCombo;
+}
+
+// Iron Scales — brief invincibility right after any pickup (checked in trySurviveCollision).
+function triggerIronScales() {
+    if (abilityLevels.ironscales === 0) return;
+    ironScalesUntil = performance.now() + ABILITY_CFG.ironscales.durations[abilityLevels.ironscales - 1];
+}
+
+// Echo's periodically-spawned duplicate pickup — a temporary extra target anyone (main
+// snake, Tongue, Magnet) can grab; clearEchoFood() is its "respawn" callback for
+// collectFoodAt (the next one comes from Echo's own cooldown cycle, not an immediate respawn).
+function spawnEchoFood() {
+    const occ = new Set(snake.map(s => `${s.x},${s.y}`));
+    occ.add(`${food.x},${food.y}`);
+    if (bonusFood) occ.add(`${bonusFood.x},${bonusFood.y}`);
+    babySnake.forEach(s => occ.add(`${s.x},${s.y}`));
+    const free = [];
+    for (let x = 0; x < CELL_COUNT; x++)
+        for (let y = 0; y < CELL_COUNT; y++)
+            if (!occ.has(`${x},${y}`)) free.push({ x, y });
+    if (!free.length) return;
+    echoFood = free[Math.floor(Math.random() * free.length)];
+    echoFoodType = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
+    echoFoodSpawnTime = performance.now();
+}
+function clearEchoFood() { echoFood = null; }
 
 function activateTongue(level) {
     if (!snake.length) return false;
     const range = ABILITY_CFG.tongue.ranges[level - 1];
     const dx = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
     const dy = dir === 'down'  ? 1 : dir === 'up'   ? -1 : 0;
+    const targets = [[food, spawnFood], [bonusFood, spawnBonusFood], [echoFood, clearEchoFood]];
     for (let i = 1; i <= range; i++) {
         const tx = snake[0].x + dx*i, ty = snake[0].y + dy*i;
         if (tx < 0 || tx >= CELL_COUNT || ty < 0 || ty >= CELL_COUNT) break;
-        if (tx === food.x && ty === food.y) {
-            collectFoodAt(tx, ty, food, spawnFood);
-            tongue = { ex: tx, ey: ty };
-            tongueVisUntil = performance.now() + 380;
-            abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
-            return true;
-        }
-        if (bonusFood && tx === bonusFood.x && ty === bonusFood.y) {
-            collectFoodAt(tx, ty, bonusFood, spawnBonusFood);
+        for (const [obj, respawn] of targets) {
+            if (!obj || tx !== obj.x || ty !== obj.y) continue;
+            collectFoodAt(tx, ty, obj, respawn);
             tongue = { ex: tx, ey: ty };
             tongueVisUntil = performance.now() + 380;
             abilityCooldowns.tongue = performance.now() + ABILITY_CFG.tongue.cooldowns[level - 1];
@@ -1248,6 +1378,7 @@ function activateBabySnake(level) {
     const occ = new Set(snake.map(s => `${s.x},${s.y}`));
     occ.add(`${food.x},${food.y}`);
     if (bonusFood) occ.add(`${bonusFood.x},${bonusFood.y}`);
+    if (echoFood) occ.add(`${echoFood.x},${echoFood.y}`);
     const free = [];
     for (let x = 0; x < CELL_COUNT; x++)
         for (let y = 0; y < CELL_COUNT; y++)
@@ -1470,8 +1601,12 @@ function setupTouch() {
     document.addEventListener('touchstart', e => {
         if (e.target.closest('button') || e.target.closest('input')) return;
         sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-        // Sprint — advanced mode only, and only once picked (see ABILITY_CFG.sprint).
-        if (gameState === 'running' && gameMode === 'advanced' && abilityLevels.sprint > 0) {
+        // Hold-slot abilities — advanced mode only, and only if the hold slot is actually
+        // occupied by something (Sprint or Pit Sense; only one can ever be owned at once, see
+        // rollAbilityChoices). `holdBoost` just means "the hold gesture is active right now";
+        // what that actually does depends on which hold-slot ability is owned (see loop()/draw()).
+        if (gameState === 'running' && gameMode === 'advanced'
+            && (abilityLevels.sprint > 0 || abilityLevels.pitsense > 0)) {
             clearTimeout(holdBoostTimer);
             holdBoostTimer = setTimeout(() => { holdBoost = true; }, HOLD_BOOST_DELAY);
         }
@@ -1494,7 +1629,7 @@ function setupTouch() {
         } else if (dist >= SWIPE_MIN) {
             applySwipe(dx, dy);
         } else {
-            tryLunge();
+            tryTapAbility();
         }
     }, { passive: true });
 }
@@ -1551,8 +1686,14 @@ function startGame() {
     enterStart  = performance.now();
 
     xp = 0; xpLevel = 1; levelUpQueue = 0; levelUpOpen = false; levelUpChoices = []; armorCharges = 0;
-    abilityLevels    = { sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0 };
-    abilityCooldowns = { dash:0, tongue:0, slowtime:0 };
+    rattleUntil = 0; phaseUntil = 0; ironScalesUntil = 0; lastEatCell = null; chainCombo = 1; foodIsBig = false;
+    echoFood = null; echoFoodType = 'apple'; echoFoodSpawnTime = 0;
+    abilityLevels = {
+        sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
+        reversethrust:0, nimbletail:0, rattle:0, phasetail:0, pitsense:0,
+        echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
+    };
+    abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
     tongue = null; tongueVisUntil = 0; babySnake = []; babyUntil = 0; slowUntil = 0;
     bonusFood = null;
     particles = []; scorePops = []; shakeMag = 0;
@@ -1575,11 +1716,14 @@ function spawnFood() {
     food = free[Math.floor(Math.random() * free.length)];
     foodType = FOOD_TYPES[Math.floor(Math.random() * FOOD_TYPES.length)];
     foodSpawnTime = performance.now();
+    foodIsBig = gameMode === 'advanced' && abilityLevels.bigfish > 0
+        && Math.random() < ABILITY_CFG.bigfish.chance[abilityLevels.bigfish - 1];
 }
 
 function spawnBonusFood() {
     const occ = new Set(snake.map(s => `${s.x},${s.y}`));
     occ.add(`${food.x},${food.y}`);
+    if (echoFood) occ.add(`${echoFood.x},${echoFood.y}`);
     babySnake.forEach(s => occ.add(`${s.x},${s.y}`));
     const free = [];
     for (let x = 0; x < CELL_COUNT; x++)
@@ -1600,19 +1744,13 @@ function tick() {
     if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) {
         const ix = snake[0].x*cell + cell/2 + (dir==='right'?cell/2: dir==='left'?-cell/2:0);
         const iy = snake[0].y*cell + cell/2 + (dir==='down' ?cell/2: dir==='up'  ?-cell/2:0);
-        if (gameMode === 'advanced' && armorCharges > 0) {
-            armorCharges--; spawnArmorBreak(ix, iy); vibrate(40); shakeMag = 6;
-            return;
-        }
+        if (trySurviveCollision('wall', ix, iy)) return;
         die('wall', ix, iy);
         return;
     }
     if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) {
-        if (gameMode === 'advanced' && armorCharges > 0) {
-            const hx = snake[0].x*cell+cell/2, hy = snake[0].y*cell+cell/2;
-            armorCharges--; spawnArmorBreak(hx, hy); vibrate(40); shakeMag = 6;
-            return;
-        }
+        const hx = snake[0].x*cell+cell/2, hy = snake[0].y*cell+cell/2;
+        if (trySurviveCollision('self', hx, hy)) return;
         die('self'); return;
     }
 
@@ -1627,9 +1765,11 @@ function tick() {
     snake.unshift({ x:nx, y:ny });
     spawnDebris(cell);
 
-    // The main snake can grab the sidekick's bonus fruit too if it happens to path over it —
-    // it doesn't grow you (that's what the main food is for), just score+XP, same as Magnet.
+    // The main snake can grab the sidekick's bonus fruit or Echo's duplicate too if it happens
+    // to path over them — neither grows you (that's what the main food is for), just score+XP,
+    // same as Magnet.
     if (gameMode === 'advanced' && bonusFood) collectFoodAt(nx, ny, bonusFood, spawnBonusFood);
+    if (gameMode === 'advanced' && echoFood)  collectFoodAt(nx, ny, echoFood, clearEchoFood);
 
     // Fly catch — grows snake, +FLY_POINTS
     let flyEaten = false;
@@ -1641,20 +1781,21 @@ function tick() {
         scorePops.push({ x: nx*cell+cell/2, y: ny*cell+cell/2, born: performance.now(), val: `+${FLY_POINTS}` });
         stopFlyBuzz(); fly = null;
         digestingFood.push({ segIndex: 0 });
-        if (gameMode === 'advanced') gainXP(3);
+        if (gameMode === 'advanced') { gainXP(3 * chainMultiplier(nx, ny)); triggerIronScales(); }
     }
 
     if (eating) {
-        score += 1;
+        const bigMult = foodIsBig ? ABILITY_CFG.bigfish.mult[abilityLevels.bigfish - 1] : 1;
+        score += bigMult;
         if (score > highScore) highScore = score;
         tickMs = Math.max(MIN_MS, BASE_MS - (snake.length-3) * SPEED_STEP);
         updateScoreDisplay(); sfxEat(); vibrate(25); spawnFood();
-        shakeMag = 3;
+        shakeMag = foodIsBig ? 6 : 3;
         tongueFlickBorn = performance.now();
-        scorePops.push({ x: eatX, y: eatY, born: performance.now() });
+        scorePops.push({ x: eatX, y: eatY, born: performance.now(), val: bigMult > 1 ? `+${bigMult}` : undefined });
         digestingFood.push({ segIndex: 0 });
-        if (gameMode === 'advanced') gainXP(1);
-        if (!fly && Math.random() < FLY_SPAWN_CHANCE) spawnFly();
+        if (gameMode === 'advanced') { gainXP(bigMult * chainMultiplier(nx, ny)); triggerIronScales(); }
+        if (!fly && Math.random() < FLY_SPAWN_CHANCE * (abilityLevels.keenscent > 0 ? ABILITY_CFG.keenscent.spawnMult[abilityLevels.keenscent-1] : 1)) spawnFly();
     } else if (!flyEaten) { snake.pop(); }
     digestingFood = digestingFood.filter(b => b.segIndex < snake.length);
 
@@ -1682,16 +1823,19 @@ function tick() {
         }
         if (abilityLevels.magnet > 0) {
             const mr = ABILITY_CFG.magnet.radius[abilityLevels.magnet - 1];
-            const d  = Math.max(Math.abs(food.x - snake[0].x), Math.abs(food.y - snake[0].y));
-            if (d > 0 && d <= mr) collectFoodAt(food.x, food.y, food, spawnFood);
-            if (bonusFood) {
-                const d2 = Math.max(Math.abs(bonusFood.x - snake[0].x), Math.abs(bonusFood.y - snake[0].y));
-                if (d2 > 0 && d2 <= mr) collectFoodAt(bonusFood.x, bonusFood.y, bonusFood, spawnBonusFood);
+            for (const [obj, respawn] of [[food, spawnFood], [bonusFood, spawnBonusFood], [echoFood, clearEchoFood]]) {
+                if (!obj) continue;
+                const d = Math.max(Math.abs(obj.x - snake[0].x), Math.abs(obj.y - snake[0].y));
+                if (d > 0 && d <= mr) collectFoodAt(obj.x, obj.y, obj, respawn);
             }
         }
         if (abilityLevels.sidekick > 0) {
             if (babySnake.length === 0 || performance.now() >= babyUntil) activateBabySnake(abilityLevels.sidekick);
             else tickBabySnake();
+        }
+        if (abilityLevels.echo > 0 && !echoFood && performance.now() >= abilityCooldowns.echo) {
+            spawnEchoFood();
+            abilityCooldowns.echo = performance.now() + ABILITY_CFG.echo.cooldowns[abilityLevels.echo - 1];
         }
     }
 }
@@ -1730,6 +1874,22 @@ function spawnArmorBreak(x, y) {
             kind: 'impact',
         });
     }
+}
+
+// Checks every "survive a fatal hit" ability in order and returns true if this collision
+// should be forgiven (handling its own consumption/feedback), false if the snake should
+// actually die. Centralizes Phase Tail (self-only, no consumption — the window just runs
+// out on its own), Rattle (single-use, consumed immediately), Iron Scales (timed window, no
+// consumption), and Armor (charge-based) so both the wall and self collision checks in tick()
+// share one implementation instead of duplicating this chain.
+function trySurviveCollision(kind, hx, hy) {
+    if (gameMode !== 'advanced') return false;
+    const now = performance.now();
+    if (kind === 'self' && now < phaseUntil) return true;
+    if (now < rattleUntil) { rattleUntil = 0; spawnArmorBreak(hx, hy); vibrate(40); shakeMag = 6; return true; }
+    if (now < ironScalesUntil) { spawnArmorBreak(hx, hy); vibrate(25); shakeMag = 4; return true; }
+    if (armorCharges > 0) { armorCharges--; spawnArmorBreak(hx, hy); vibrate(40); shakeMag = 6; return true; }
+    return false;
 }
 
 function die(reason = 'self', ix, iy) {
@@ -1814,6 +1974,80 @@ function tryLunge() {
     lastTick = now - 35; // fire first step immediately
     abilityCooldowns.dash = now + ABILITY_CFG.dash.cooldowns[abilityLevels.dash-1];
     sfxLunge();
+}
+
+// Reverse Thrust — instantly flips the snake's direction of travel by swapping which end is
+// the head. Reverses prevSnake in lockstep so render interpolation stays paired by index (a
+// small visual snap is expected and fine for an instant repositioning move).
+function tryReverseThrust() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.reversethrust === 0 || snake.length < 2) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.reversethrust) return;
+    snake.reverse();
+    prevSnake.reverse();
+    const h = snake[0], n = snake[1];
+    if (h.x > n.x) dir = 'right';
+    else if (h.x < n.x) dir = 'left';
+    else if (h.y > n.y) dir = 'down';
+    else dir = 'up';
+    nextDir = dir;
+    abilityCooldowns.reversethrust = now + ABILITY_CFG.reversethrust.cooldowns[abilityLevels.reversethrust-1];
+    sfxLunge(); vibrate(20);
+}
+
+// Nimble Tail — hops the tail tip to a free cell next to the second-to-last segment, freeing
+// it from wherever it currently trails without moving the head.
+function tryNimbleTail() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.nimbletail === 0 || snake.length < 2) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.nimbletail) return;
+    const second = snake[snake.length - 2];
+    const occ = new Set(snake.map(s => `${s.x},${s.y}`));
+    for (const d of [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}]) {
+        const nx = second.x + d.dx, ny = second.y + d.dy;
+        if (nx < 0 || nx >= CELL_COUNT || ny < 0 || ny >= CELL_COUNT) continue;
+        if (occ.has(`${nx},${ny}`)) continue;
+        snake[snake.length - 1] = { x: nx, y: ny };
+        break;
+    }
+    abilityCooldowns.nimbletail = now + ABILITY_CFG.nimbletail.cooldowns[abilityLevels.nimbletail-1];
+    sfxSwipe(); vibrate(15);
+}
+
+// Rattle — a manually-timed grace window; the next fatal hit within it is forgiven (see
+// trySurviveCollision). Unlike Armor (automatic charges) this has to be called deliberately.
+function tryRattle() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.rattle === 0) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.rattle) return;
+    rattleUntil = now + ABILITY_CFG.rattle.windows[abilityLevels.rattle-1];
+    abilityCooldowns.rattle = now + ABILITY_CFG.rattle.cooldowns[abilityLevels.rattle-1];
+    sfxLunge(); vibrate(15);
+}
+
+// Phase Tail — self-collisions don't kill you for a few seconds (see trySurviveCollision);
+// doesn't help against walls.
+function tryPhaseTail() {
+    if (gameState !== 'running' || levelUpOpen) return;
+    if (gameMode !== 'advanced' || abilityLevels.phasetail === 0) return;
+    const now = performance.now();
+    if (now < abilityCooldowns.phasetail) return;
+    phaseUntil = now + ABILITY_CFG.phasetail.durations[abilityLevels.phasetail-1];
+    abilityCooldowns.phasetail = now + ABILITY_CFG.phasetail.cooldowns[abilityLevels.phasetail-1];
+    sfxLunge(); vibrate(15);
+}
+
+// Tap-slot dispatcher — only one tap ability can ever be owned at a time (see
+// rollAbilityChoices' slot-exclusivity rule), so at most one branch here ever does anything.
+function tryTapAbility() {
+    if (abilityLevels.dash > 0)          { tryLunge();         return; }
+    if (abilityLevels.reversethrust > 0) { tryReverseThrust(); return; }
+    if (abilityLevels.nimbletail > 0)    { tryNimbleTail();    return; }
+    if (abilityLevels.rattle > 0)        { tryRattle();        return; }
+    if (abilityLevels.phasetail > 0)     { tryPhaseTail();     return; }
 }
 
 // ── Fly ───────────────────────────────────────────────────────
@@ -2112,6 +2346,7 @@ function draw() {
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
         if (dashReady()) drawDashReady(cell);
+        if (holdBoost && abilityLevels.pitsense > 0) drawPitSense(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
@@ -2164,30 +2399,40 @@ function foodBounceOffset(t) {
 }
 
 function drawFood(cell) {
-    foodPulse += 0.055; // shared bounce/pulse clock for both fruits — advanced once per frame here
-    drawFruit(cell, food, foodType, foodSpawnTime, false);
-    if (gameMode === 'advanced' && bonusFood) drawFruit(cell, bonusFood, bonusFoodType, bonusFoodSpawnTime, true);
+    foodPulse += 0.055; // shared bounce/pulse clock for all fruit — advanced once per frame here
+    drawFruit(cell, food, foodType, foodSpawnTime, 'normal', foodIsBig);
+    if (gameMode === 'advanced' && bonusFood) drawFruit(cell, bonusFood, bonusFoodType, bonusFoodSpawnTime, 'bonus', false);
+    if (gameMode === 'advanced' && echoFood)  drawFruit(cell, echoFood, echoFoodType, echoFoodSpawnTime, 'echo', false);
 }
 
-// isBonus: smaller + a purple glow ring, so the Sidekick's dedicated target reads as visually
-// distinct from the main food rather than a second identical fruit.
-function drawFruit(cell, obj, type, spawnTime, isBonus) {
+// variant 'bonus'/'echo': smaller + a colored glow ring (purple/teal) so Sidekick's and Echo's
+// targets read as visually distinct from the main food instead of identical extra fruit.
+// big: Big Fish's oversized/glowing main food.
+function drawFruit(cell, obj, type, spawnTime, variant, big) {
     const bob  = Math.sin(foodPulse * 1.4) * cell * 0.09;
     const p    = Math.sin(foodPulse) * 0.09 + 0.91;
     const bt   = Math.min(1, (performance.now() - spawnTime) / FOOD_BOUNCE_DUR);
     const fx   = obj.x*cell + cell/2;
     const fy   = obj.y*cell + cell/2 + bob + foodBounceOffset(bt) * cell;
-    const r    = (cell/2 - 1.5) * p * (isBonus ? 0.78 : 1);
+    const sizeMult = variant !== 'normal' ? 0.78 : (big ? 1.4 : 1);
+    const r    = (cell/2 - 1.5) * p * sizeMult;
     const shadowFrac = (bob + cell*0.09) / (cell*0.18);
     ctx.fillStyle = `rgba(0,0,0,${0.22 - shadowFrac*0.10})`;
     ctx.beginPath();
     ctx.ellipse(obj.x*cell+cell/2, obj.y*cell+cell*0.88, r*(0.7+shadowFrac*0.2), r*0.28, 0, 0, Math.PI*2);
     ctx.fill();
-    if (isBonus) {
+    if (variant !== 'normal') {
         const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
-        ctx.strokeStyle = `rgba(170,60,220,${0.45 + 0.3*pulse})`;
+        const glowColor = variant === 'bonus' ? '170,60,220' : '60,200,210';
+        ctx.strokeStyle = `rgba(${glowColor},${0.45 + 0.3*pulse})`;
         ctx.lineWidth = Math.max(1.5, cell*0.05);
         ctx.beginPath(); ctx.arc(fx, fy, r*1.4, 0, Math.PI*2); ctx.stroke();
+    }
+    if (big) {
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.005);
+        ctx.strokeStyle = `rgba(255,210,60,${0.5 + 0.35*pulse})`;
+        ctx.lineWidth = Math.max(2, cell*0.06);
+        ctx.beginPath(); ctx.arc(fx, fy, r*1.2, 0, Math.PI*2); ctx.stroke();
     }
     switch (type) {
         case 'strawberry': drawStrawberry(fx, fy, r); break;
@@ -2488,6 +2733,27 @@ function drawDashReady(cell) {
     ctx.beginPath();
     ctx.arc(hx, hy, cell*0.85 + pulse*cell*0.12, 0, Math.PI*2);
     ctx.stroke();
+    ctx.restore();
+}
+
+// Pit Sense — faint dotted trail extending forward from the head along the current heading
+// while held. Pure information (like a pit viper's heat-sensing), no effect on movement.
+function drawPitSense(cell) {
+    if (!renderSnake.length) return;
+    const hw = cell / 2;
+    const len = ABILITY_CFG.pitsense.previewLen[abilityLevels.pitsense - 1];
+    const ddx = dir==='right'?1: dir==='left'?-1:0;
+    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
+    const hx = renderSnake[0].x*cell+hw, hy = renderSnake[0].y*cell+hw;
+    ctx.save();
+    for (let i = 1; i <= len; i++) {
+        const x = hx + ddx*cell*i, y = hy + ddy*cell*i;
+        if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) break;
+        ctx.fillStyle = `rgba(120,220,255,${0.5 - i*0.06})`;
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(1.5, cell*0.09), 0, Math.PI*2);
+        ctx.fill();
+    }
     ctx.restore();
 }
 
