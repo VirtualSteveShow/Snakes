@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.79';
+const VERSION = 'v1.80';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -606,7 +606,7 @@ let slowUntil      = 0;        // performance.now() when slow-time expires
 
 let abilityLevels = {
     sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
-    reversethrust:0, nimbletail:0, rattle:0, phasetail:0, pitsense:0,
+    reversethrust:0, nimbletail:0, rattle:0, phasetail:0,
     echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
 }; // 0=locked, 1/2/3
 let abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
@@ -687,11 +687,6 @@ const ABILITY_CFG = {
         cooldowns: [16000, 12000, 8000],
         durations: [2000, 3000, 4000],
     },
-    pitsense: {
-        name: 'PIT SENSE', slot: 'hold',
-        descs: ['Hold to preview your next few moves', 'Longer preview', 'Longest preview'],
-        previewLen: [3, 5, 7], // cells of ghost trail shown
-    },
     echo: {
         name: 'ECHO',
         descs: ['Periodically duplicates food elsewhere', 'More often', 'Most often'],
@@ -730,7 +725,7 @@ const ABILITY_POOL = Object.keys(ABILITY_CFG);
 // ── Snake characters (advanced mode only) ──────────────────────
 // One playable character per ability — starts the run with that ability already at level 1
 // instead of picking blind. Named to match the ability's theme (Viper -> Dash/lunge,
-// Rattlesnake -> Rattle, Pit Viper -> Pit Sense, etc). Classic mode ignores all of this and
+// Rattlesnake -> Rattle, etc). Classic mode ignores all of this and
 // always renders the original green. For now the only visual difference is body/head hue
 // (evenly spread around the color wheel, starting from the game's original green) — real
 // per-character art is a follow-up (see TODO.md).
@@ -747,7 +742,6 @@ const SNAKE_CHARACTERS = [
     { key: 'nimbletail',         name: 'Glass Snake' },
     { key: 'rattle',             name: 'Rattlesnake' },
     { key: 'phasetail',          name: 'Flying Snake' },
-    { key: 'pitsense',           name: 'Pit Viper' },
     { key: 'echo',               name: 'Milk Snake' },
     { key: 'bigfish',            name: 'Egg-Eater' },
     { key: 'keenscent',          name: 'Hognose' },
@@ -1902,11 +1896,11 @@ function setupTouch() {
         if (e.target.closest('button') || e.target.closest('input')) return;
         sx = e.touches[0].clientX; sy = e.touches[0].clientY;
         // Hold-slot abilities — advanced mode only, and only if the hold slot is actually
-        // occupied by something (Sprint or Pit Sense; only one can ever be owned at once, see
+        // occupied by something (only Sprint right now; only one can ever be owned at once, see
         // rollAbilityChoices). `holdBoost` just means "the hold gesture is active right now";
         // what that actually does depends on which hold-slot ability is owned (see loop()/draw()).
         if (gameState === 'running' && gameMode === 'advanced'
-            && (abilityLevels.sprint > 0 || abilityLevels.pitsense > 0)) {
+            && abilityLevels.sprint > 0) {
             clearTimeout(holdBoostTimer);
             holdBoostTimer = setTimeout(() => { holdBoost = true; }, HOLD_BOOST_DELAY);
         }
@@ -1990,7 +1984,7 @@ function startGame() {
     echoFood = null; echoFoodType = 'apple'; echoFoodSpawnTime = 0;
     abilityLevels = {
         sprint:0, dash:0, tongue:0, slowtime:0, sidekick:0, armor:0, magnet:0, ring:0,
-        reversethrust:0, nimbletail:0, rattle:0, phasetail:0, pitsense:0,
+        reversethrust:0, nimbletail:0, rattle:0, phasetail:0,
         echo:0, bigfish:0, keenscent:0, chainreaction:0, efficientdigestion:0, ironscales:0,
     };
     abilityCooldowns = { dash:0, tongue:0, slowtime:0, reversethrust:0, nimbletail:0, rattle:0, phasetail:0, echo:0 };
@@ -2593,11 +2587,7 @@ function loop(now) {
         } else {
             let effMs = tickMs;
             // holdBoost just means "the hold gesture is active" — it only affects speed if
-            // Sprint specifically is the hold-slot ability owned (Pit Sense also arms
-            // holdBoost, per setupTouch, but is a pure info overlay with no speed effect;
-            // without this guard, holding with only Pit Sense computed effMs from
-            // abilityLevels.sprint===0, i.e. floorMult[-1]/factor[-1] === undefined -> NaN,
-            // which froze the tick loop entirely since `now - lastTick >= NaN` is never true).
+            // Sprint specifically is the hold-slot ability owned.
             if (holdBoost && abilityLevels.sprint > 0) {
                 const l = abilityLevels.sprint;
                 effMs = Math.max(MIN_MS * ABILITY_CFG.sprint.floorMult[l-1], tickMs * ABILITY_CFG.sprint.factor[l-1]);
@@ -2680,7 +2670,6 @@ function draw() {
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
         if (tapAbilityReady()) drawTapReady(cell);
-        if (holdBoost && abilityLevels.pitsense > 0) drawPitSense(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
     drawSnakeSmooth(cell);
@@ -3095,27 +3084,6 @@ function drawSlowTimeBar(cell) {
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineWidth = 1;
     ctx.strokeRect(bx, by, barW, barH);
-    ctx.restore();
-}
-
-// Pit Sense — faint dotted trail extending forward from the head along the current heading
-// while held. Pure information (like a pit viper's heat-sensing), no effect on movement.
-function drawPitSense(cell) {
-    if (!renderSnake.length) return;
-    const hw = cell / 2;
-    const len = ABILITY_CFG.pitsense.previewLen[abilityLevels.pitsense - 1];
-    const ddx = dir==='right'?1: dir==='left'?-1:0;
-    const ddy = dir==='down' ?1: dir==='up'  ?-1:0;
-    const hx = renderSnake[0].x*cell+hw, hy = renderSnake[0].y*cell+hw;
-    ctx.save();
-    for (let i = 1; i <= len; i++) {
-        const x = hx + ddx*cell*i, y = hy + ddy*cell*i;
-        if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) break;
-        ctx.fillStyle = `rgba(120,220,255,${0.5 - i*0.06})`;
-        ctx.beginPath();
-        ctx.arc(x, y, Math.max(1.5, cell*0.09), 0, Math.PI*2);
-        ctx.fill();
-    }
     ctx.restore();
 }
 
