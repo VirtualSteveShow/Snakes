@@ -363,6 +363,57 @@ input[type="range"] {
 }
 #xp-level-badge { font-size: 11px; color: #44aaff; font-family: monospace; letter-spacing: 1px; white-space: nowrap; }
 
+/* ── Ability HUD (gesture slots + owned-ability icon bar) ── */
+#ability-hud {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    max-width: 500px;
+    padding: 3px 12px 5px;
+    flex-shrink: 0;
+}
+#ability-hud.visible { display: flex; }
+#gesture-slots { display: flex; gap: 8px; }
+.gslot {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 4px 8px;
+    min-width: 0;
+}
+.gslot-tag { font-size: 9px; color: #666; letter-spacing: 1px; font-family: monospace; flex-shrink: 0; }
+.gslot-name {
+    font-size: 11px; color: #44ff44; font-family: monospace; font-weight: bold;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gslot.empty .gslot-name { color: #444; font-weight: normal; }
+
+#ability-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+.ability-icon {
+    position: relative;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    border: 2px solid #44ff44;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: bold; color: #44ff44; font-family: monospace;
+    flex-shrink: 0;
+}
+.ability-icon .lvl-badge {
+    position: absolute; bottom: -4px; right: -4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #44ff44; color: #111;
+    font-size: 9px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #111;
+}
+
 /* ── Level-up overlay ── */
 #levelup-overlay .overlay-title { color: #44ff44; letter-spacing: 4px; }
 #levelup-cards { width: 100%; display: flex; flex-direction: column; gap: 10px; }

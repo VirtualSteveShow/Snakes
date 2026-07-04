@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.75';
+const VERSION = 'v1.76';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1202,11 +1202,54 @@ function syncModeBtns() {
 }
 
 function updateAdvancedUI() {
-    const hud = document.getElementById('adv-hud');
-    const isAdv = gameMode === 'advanced';
-    if (hud) hud.classList.toggle('visible', isAdv);
-    if (isAdv) updateAdvancedHUD();
+    const hud     = document.getElementById('adv-hud');
+    const abHud   = document.getElementById('ability-hud');
+    const isAdv   = gameMode === 'advanced';
+    if (hud)   hud.classList.toggle('visible', isAdv);
+    if (abHud) abHud.classList.toggle('visible', isAdv);
+    if (isAdv) { updateAdvancedHUD(); updateAbilityHud(); }
     resize();
+}
+
+// Short placeholder label for an ability's icon until real art exists — initials for
+// multi-word names ("SLOW TIME" -> "ST"), first 3 letters otherwise ("SPRINT" -> "SPR").
+function abilityAcronym(name) {
+    const words = name.split(' ');
+    if (words.length > 1) return words.map(w => w[0]).join('').slice(0, 3);
+    return name.slice(0, 3);
+}
+
+// Gesture-slot chips (what's currently occupying Hold/Tap — only one ability can ever own
+// each, see rollAbilityChoices) plus one icon per owned ability with a level badge.
+function updateAbilityHud() {
+    const holdKey = ABILITY_POOL.find(k => ABILITY_CFG[k].slot === 'hold' && abilityLevels[k] > 0);
+    const tapKey  = ABILITY_POOL.find(k => ABILITY_CFG[k].slot === 'tap'  && abilityLevels[k] > 0);
+    const holdEl     = document.getElementById('gslot-hold');
+    const tapEl      = document.getElementById('gslot-tap');
+    const holdNameEl = document.getElementById('gslot-hold-name');
+    const tapNameEl  = document.getElementById('gslot-tap-name');
+    if (holdNameEl) holdNameEl.textContent = holdKey ? `${ABILITY_CFG[holdKey].name} L${abilityLevels[holdKey]}` : '—';
+    if (tapNameEl)  tapNameEl.textContent  = tapKey  ? `${ABILITY_CFG[tapKey].name} L${abilityLevels[tapKey]}`   : '—';
+    if (holdEl) holdEl.classList.toggle('empty', !holdKey);
+    if (tapEl)  tapEl.classList.toggle('empty', !tapKey);
+
+    const list = document.getElementById('ability-icons');
+    if (!list) return;
+    list.innerHTML = '';
+    for (const key of ABILITY_POOL) {
+        const lvl = abilityLevels[key];
+        if (lvl <= 0) continue;
+        const cfg  = ABILITY_CFG[key];
+        const icon = document.createElement('div');
+        icon.className = 'ability-icon';
+        icon.title = cfg.name;
+        icon.textContent = abilityAcronym(cfg.name);
+        const badge = document.createElement('span');
+        badge.className = 'lvl-badge';
+        badge.textContent = String(lvl);
+        icon.appendChild(badge);
+        list.appendChild(icon);
+    }
 }
 
 function updateAdvancedHUD() {
@@ -1285,6 +1328,7 @@ function pickAbility(key) {
     levelUpOpen = false;
     lastTick = performance.now();
     requestLevelUp();
+    updateAbilityHud();
 }
 
 // ── Debug (options panel — ABILITY DEBUG section) ─────────────
@@ -1306,6 +1350,7 @@ function debugSetAbilityLevel(key, level) {
     }
     if (key === 'echo' && level === 0) echoFood = null;
     updateAdvancedHUD();
+    updateAbilityHud();
 }
 
 function debugSetSnakeLength(n) {
@@ -1656,12 +1701,14 @@ function init() {
 }
 
 function resize() {
-    const area = document.getElementById('game-area');
-    const sb   = document.getElementById('scoreboard');
-    const ph   = document.getElementById('profile-header');
-    const hud  = document.getElementById('adv-hud');
+    const area  = document.getElementById('game-area');
+    const sb    = document.getElementById('scoreboard');
+    const ph    = document.getElementById('profile-header');
+    const hud   = document.getElementById('adv-hud');
+    const abHud = document.getElementById('ability-hud');
     const extraH = (ph ? ph.offsetHeight : 0)
-                 + (hud && hud.classList.contains('visible') ? hud.offsetHeight : 0);
+                 + (hud   && hud.classList.contains('visible')   ? hud.offsetHeight   : 0)
+                 + (abHud && abHud.classList.contains('visible') ? abHud.offsetHeight : 0);
     const size = Math.min(area.clientWidth, area.clientHeight - sb.offsetHeight - extraH - 10, MAX_CANVAS);
     canvas.width = canvas.height = Math.max(size, 0);
 }
@@ -1799,6 +1846,7 @@ function startGame() {
 
     updateScoreDisplay();
     updateAdvancedHUD();
+    updateAbilityHud();
     updatePauseBtn();
     spawnFood();
     lastTick = performance.now(); // music starts after entering animation
