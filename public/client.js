@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.80';
+const VERSION = 'v1.81';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -2057,8 +2057,10 @@ function tick() {
     }
     if (snake.slice(0,-1).some(s => s.x===nx && s.y===ny)) {
         const hx = snake[0].x*cell+cell/2, hy = snake[0].y*cell+cell/2;
-        if (trySurviveCollision('self', hx, hy)) return;
-        die('self'); return;
+        // Surviving a self-collision has to let the head actually move onto that cell —
+        // otherwise dir/nx/ny are unchanged next tick, the same overlap is detected again,
+        // and the snake just freezes for the whole immunity window instead of passing through.
+        if (!trySurviveCollision('self', hx, hy)) { die('self'); return; }
     }
 
     // Digesting food travels toward the tail as a physical piece of the body — every tick
