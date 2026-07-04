@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.78';
+const VERSION = 'v1.79';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -727,6 +727,40 @@ const ABILITY_CFG = {
 };
 const ABILITY_POOL = Object.keys(ABILITY_CFG);
 
+// ── Snake characters (advanced mode only) ──────────────────────
+// One playable character per ability — starts the run with that ability already at level 1
+// instead of picking blind. Named to match the ability's theme (Viper -> Dash/lunge,
+// Rattlesnake -> Rattle, Pit Viper -> Pit Sense, etc). Classic mode ignores all of this and
+// always renders the original green. For now the only visual difference is body/head hue
+// (evenly spread around the color wheel, starting from the game's original green) — real
+// per-character art is a follow-up (see TODO.md).
+const SNAKE_CHARACTERS = [
+    { key: 'sprint',             name: 'Racer' },
+    { key: 'dash',               name: 'Viper' },
+    { key: 'tongue',             name: 'Coachwhip' },
+    { key: 'slowtime',           name: 'Python' },
+    { key: 'sidekick',           name: 'Garter' },
+    { key: 'armor',              name: 'Cobra' },
+    { key: 'magnet',             name: 'Kingsnake' },
+    { key: 'ring',               name: 'Anaconda' },
+    { key: 'reversethrust',      name: 'Sidewinder' },
+    { key: 'nimbletail',         name: 'Glass Snake' },
+    { key: 'rattle',             name: 'Rattlesnake' },
+    { key: 'phasetail',          name: 'Flying Snake' },
+    { key: 'pitsense',           name: 'Pit Viper' },
+    { key: 'echo',               name: 'Milk Snake' },
+    { key: 'bigfish',            name: 'Egg-Eater' },
+    { key: 'keenscent',          name: 'Hognose' },
+    { key: 'chainreaction',      name: 'Coral Snake' },
+    { key: 'efficientdigestion', name: 'Boa' },
+    { key: 'ironscales',         name: 'Diamondback' },
+];
+for (let i = 0; i < SNAKE_CHARACTERS.length; i++) {
+    SNAKE_CHARACTERS[i].hue = Math.round((120 + i * (360 / SNAKE_CHARACTERS.length)) % 360);
+}
+let selectedCharacter = localStorage.getItem('snake_character') || SNAKE_CHARACTERS[0].key;
+let activeSnakeHue = 120; // set from the selected character at startGame(); classic mode always uses this default (original green)
+
 // ── Profile system ────────────────────────────────────────────
 let _pendingAvatar = null;    // base64 data URL from image picker
 let _editingProfileId = null; // set when profile-overlay is editing an existing profile
@@ -1204,11 +1238,55 @@ function syncModeBtns() {
 function updateAdvancedUI() {
     const hud     = document.getElementById('adv-hud');
     const abHud   = document.getElementById('ability-hud');
+    const charRow = document.getElementById('row-char-select');
     const isAdv   = gameMode === 'advanced';
-    if (hud)   hud.classList.toggle('visible', isAdv);
-    if (abHud) abHud.classList.toggle('visible', isAdv);
+    if (hud)     hud.classList.toggle('visible', isAdv);
+    if (abHud)   abHud.classList.toggle('visible', isAdv);
+    if (charRow) charRow.style.display = isAdv ? 'flex' : 'none';
     if (isAdv) { updateAdvancedHUD(); updateAbilityHud(); }
     resize();
+}
+
+// ── Character select ───────────────────────────────────────────
+function renderCharacterList() {
+    const list = document.getElementById('char-list');
+    if (!list) return;
+    list.innerHTML = '';
+    for (const char of SNAKE_CHARACTERS) {
+        const row = document.createElement('div');
+        row.className = 'char-row' + (char.key === selectedCharacter ? ' selected' : '');
+        const swatch = document.createElement('div');
+        swatch.className = 'char-swatch';
+        swatch.style.background = `hsl(${char.hue}, 55%, 40%)`;
+        const nm = document.createElement('span');
+        nm.className = 'char-name';
+        nm.textContent = char.name;
+        row.append(swatch, nm);
+        row.addEventListener('click', () => selectCharacter(char.key));
+        list.appendChild(row);
+    }
+    showCharacterDesc(selectedCharacter);
+}
+
+function showCharacterDesc(key) {
+    const char = SNAKE_CHARACTERS.find(c => c.key === key);
+    const cfg  = ABILITY_CFG[key];
+    const desc = document.getElementById('char-desc');
+    if (!desc || !char || !cfg) return;
+    desc.innerHTML = `<span class="char-desc-name">${char.name} — ${cfg.name}</span>${cfg.descs[0]}`;
+}
+
+function selectCharacter(key) {
+    selectedCharacter = key;
+    localStorage.setItem('snake_character', key);
+    renderCharacterList();
+    syncCharSelectBtn();
+}
+
+function syncCharSelectBtn() {
+    const btn  = document.getElementById('btn-char-select');
+    const char = SNAKE_CHARACTERS.find(c => c.key === selectedCharacter);
+    if (btn && char) btn.textContent = `${char.name} ▸`;
 }
 
 // Short placeholder label for an ability's icon until real art exists — initials for
@@ -1633,6 +1711,16 @@ function initOptions() {
     document.getElementById('btn-advanced').addEventListener('click', () => setMode('advanced'));
     syncModeBtns();
 
+    syncCharSelectBtn();
+    const charOverlay = document.getElementById('character-overlay');
+    document.getElementById('btn-char-select')?.addEventListener('click', () => {
+        renderCharacterList();
+        if (charOverlay) charOverlay.classList.remove('hidden');
+    });
+    document.getElementById('btn-char-close')?.addEventListener('click', () => {
+        if (charOverlay) charOverlay.classList.add('hidden');
+    });
+
     const bHandR = document.getElementById('btn-hand-r');
     const bHandL = document.getElementById('btn-hand-l');
     if (bHandR) bHandR.addEventListener('click', () => setHandedness('right'));
@@ -1913,10 +2001,21 @@ function startGame() {
     document.getElementById('levelup-overlay').classList.add('hidden');
 
     updateScoreDisplay();
-    updateAdvancedHUD();
-    updateAbilityHud();
     updatePauseBtn();
     spawnFood();
+
+    // Selected character seeds one ability at level 1 instead of starting blind — classic
+    // mode ignores this entirely and always renders the original green.
+    if (gameMode === 'advanced') {
+        activeSnakeHue = SNAKE_CHARACTERS.find(c => c.key === selectedCharacter)?.hue ?? 120;
+        abilityLevels[selectedCharacter] = 1;
+        if (selectedCharacter === 'sidekick') { activateBabySnake(1); spawnBonusFood(); }
+        if (selectedCharacter === 'armor') armorCharges = ABILITY_CFG.armor.charges[0];
+    } else {
+        activeSnakeHue = 120;
+    }
+    updateAdvancedHUD();
+    updateAbilityHud();
     lastTick = performance.now(); // music starts after entering animation
 }
 
@@ -3237,7 +3336,7 @@ function drawDigestion(cell, bodyW) {
         if (frac <= 0) continue;
         const r = bodyW / 2 * (1 + 0.9 * frac); // clearly overflows the body width near the head
         const x = seg.x*cell+hw, y = seg.y*cell+hw;
-        ctx.fillStyle = '#278a27'; // same green as the body — a shape, not a color
+        ctx.fillStyle = `hsl(${activeSnakeHue}, 55%, 33%)`; // same color as the body — a shape, not a color
         ctx.beginPath();
         ctx.ellipse(x, y, r, r * 0.88, 0, 0, Math.PI*2);
         ctx.fill();
@@ -3247,7 +3346,7 @@ function drawDigestion(cell, bodyW) {
         ctx.lineWidth = Math.max(1.5, cell * 0.06);
         ctx.stroke();
         // highlight for a bit of roundness, same treatment as the head's
-        ctx.fillStyle = 'rgba(140,255,100,0.20)';
+        ctx.fillStyle = `hsla(${activeSnakeHue}, 70%, 75%, 0.20)`;
         ctx.beginPath();
         ctx.ellipse(x, y - r*0.15, r*0.5, r*0.45, 0, 0, Math.PI*2);
         ctx.fill();
@@ -3312,7 +3411,7 @@ function drawSnakeSmooth(cell) {
 
     // Body base
     path();
-    ctx.strokeStyle = '#278a27';
+    ctx.strokeStyle = `hsl(${activeSnakeHue}, 55%, 33%)`;
     ctx.lineWidth = bodyW;
     ctx.stroke();
 
@@ -3321,7 +3420,7 @@ function drawSnakeSmooth(cell) {
         const halfH  = bodyW * 0.34; // half-span across body
         const bowAmt = cell * 0.12;  // how far the curve bows toward tail
         ctx.save();
-        ctx.strokeStyle = 'rgba(10, 55, 10, 0.30)';
+        ctx.strokeStyle = `hsla(${activeSnakeHue}, 60%, 16%, 0.30)`;
         ctx.lineWidth   = Math.max(1.5, cell * 0.08);
         ctx.lineCap     = 'round';
         const last = rs.length - 1;
@@ -3349,14 +3448,14 @@ function drawSnakeSmooth(cell) {
     }
 
     // Center highlight stripe (reuses same path)
-    ctx.strokeStyle = 'rgba(140,255,100,0.22)';
+    ctx.strokeStyle = `hsla(${activeSnakeHue}, 70%, 75%, 0.22)`;
     ctx.lineWidth = bodyW * 0.36;
     ctx.stroke();
 
     drawDigestion(cell, bodyW);
 
     // Head — elongated ellipse in direction of travel
-    ctx.fillStyle = '#339933';
+    ctx.fillStyle = `hsl(${activeSnakeHue}, 60%, 42%)`;
     ctx.beginPath();
     ctx.ellipse(hcx, hcy, rLong, rShort, headAngle, 0, Math.PI*2);
     ctx.fill();
@@ -3367,7 +3466,7 @@ function drawSnakeSmooth(cell) {
     ctx.ellipse(hcx, hcy, rLong, rShort, headAngle, 0, Math.PI*2);
     ctx.stroke();
     // Head highlight
-    ctx.fillStyle = 'rgba(120,255,90,0.22)';
+    ctx.fillStyle = `hsla(${activeSnakeHue}, 75%, 70%, 0.22)`;
     ctx.beginPath();
     ctx.ellipse(
         hcx - ddx*rLong*0.10, hcy - ddy*rLong*0.10,
@@ -3392,7 +3491,7 @@ function drawSnakeSmooth(cell) {
             const sx = hx2 + px2*i*cell*0.28;
             const sy = hy2 + py2*i*cell*0.28;
             const opa = i === 0 ? 0.55 : 0.28;
-            ctx.strokeStyle = `rgba(140,255,100,${opa})`;
+            ctx.strokeStyle = `hsla(${activeSnakeHue}, 70%, 75%, ${opa})`;
             ctx.lineWidth = Math.max(1, cell * (i === 0 ? 0.08 : 0.05));
             ctx.beginPath();
             ctx.moveTo(sx - ddx2*cell*0.5, sy - ddy2*cell*0.5);

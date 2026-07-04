@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Snake Survivor">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css?v=78">
+    <link rel="stylesheet" href="style.css?v=79">
     <title>Snake Survivor</title>
 </head>
 <body>
@@ -69,6 +69,10 @@
             <span class="opt-label">MODE</span>
             <button id="btn-classic"  class="toggle-btn"     style="padding:5px 10px">CLASS</button>
             <button id="btn-advanced" class="toggle-btn off" style="padding:5px 10px">ADV</button>
+        </div>
+        <div class="opt-row" id="row-char-select" style="display:none">
+            <span class="opt-label">SNAKE</span>
+            <button id="btn-char-select" class="toggle-btn off" style="flex:1;padding:5px 10px">Racer ▸</button>
         </div>
         <div class="opt-row">
             <span class="opt-label">HAND</span>
@@ -153,6 +157,16 @@
         </div>
     </div>
 
+    <!-- Character select overlay -->
+    <div id="character-overlay" class="game-overlay hidden">
+        <div class="overlay-box">
+            <div class="overlay-title">CHOOSE YOUR SNAKE</div>
+            <div id="char-list"></div>
+            <div id="char-desc"></div>
+            <button id="btn-char-close" class="overlay-btn secondary">Done</button>
+        </div>
+    </div>
+
     <!-- Profile creation overlay -->
     <div id="profile-overlay" class="game-overlay hidden">
         <div class="overlay-box">
@@ -183,7 +197,7 @@
         </div>
     </div>
 
-    <script src="client.js?v=78"></script>
+    <script src="client.js?v=79"></script>
     <script>
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
     </script>
