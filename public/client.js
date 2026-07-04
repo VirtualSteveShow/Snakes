@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.84';
+const VERSION = 'v1.85';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -175,6 +175,11 @@ function updateRenderSnake(now) {
     const t = Math.max(0, Math.min(1, curEffMs > 0 ? (now - lastTick) / curEffMs : 1));
     renderSnake = snake.map((s, i) => {
         const p = i < prevSnake.length ? prevSnake[i] : s;
+        // Wall Wrap can jump a segment clean across the board in one tick (e.g. x=19 -> x=0).
+        // A normal single-cell step never has either delta above 1, so anything bigger means
+        // a wrap happened — interpolating that literally would sweep the segment across the
+        // whole grid instead of popping it to the far edge, so just snap it straight there.
+        if (Math.abs(s.x - p.x) > 1 || Math.abs(s.y - p.y) > 1) return { x: s.x, y: s.y };
         return { x: p.x + (s.x - p.x) * t, y: p.y + (s.y - p.y) * t };
     });
 }
@@ -2220,6 +2225,7 @@ function tick() {
         for (let i = 0; i < snake.length; i++) {
             const p = i < prevSnake.length ? prevSnake[i] : snake[i];
             const s = snake[i];
+            if (isWrapSeam(p, s)) continue; // Wall Wrap teleport, not a real glide — no bend direction to give it
             const gdx = s.x - p.x, gdy = s.y - p.y;
             if (gdx || gdy) bendGrassAt(s.x, s.y, gdx, gdy);
         }
@@ -3569,6 +3575,13 @@ function setHandedness(h) {
 // from drawSnakeSmooth AFTER the scales/highlight stripe so those don't wash it out, and the
 // segIndex===0 case is expected to start out mostly under the head — like a real swallow —
 // then clearly pop out from behind it within a tick or two as it's carried backward.
+// True when two array-adjacent body segments are not actually next to each other on screen —
+// only possible via Wall Wrap, where one side of the pair has wrapped and the other hasn't.
+// A normal single-cell step never puts either delta above 1.
+function isWrapSeam(a, b) {
+    return Math.abs(b.x - a.x) > 1 || Math.abs(b.y - a.y) > 1;
+}
+
 function drawDigestion(cell, bodyW) {
     if (!digestingFood.length || !renderSnake.length) return;
     const hw = cell / 2;
@@ -3618,8 +3631,14 @@ function drawSnakeSmooth(cell) {
     function path() {
         ctx.beginPath();
         ctx.moveTo(rs[0].x*cell+hw, rs[0].y*cell+hw);
-        for (let i = 1; i < rs.length; i++)
-            ctx.lineTo(rs[i].x*cell+hw, rs[i].y*cell+hw);
+        for (let i = 1; i < rs.length; i++) {
+            // Wall Wrap can put two consecutive body segments on opposite edges of the board
+            // (one's wrapped, its neighbor hasn't caught up yet) — a plain lineTo between them
+            // would draw a straight stroke clear across the grid. Start a fresh subpath there
+            // instead so each side just ends in its own round cap.
+            if (isWrapSeam(rs[i-1], rs[i])) ctx.moveTo(rs[i].x*cell+hw, rs[i].y*cell+hw);
+            else ctx.lineTo(rs[i].x*cell+hw, rs[i].y*cell+hw);
+        }
     }
 
     ctx.save();
@@ -3670,6 +3689,7 @@ function drawSnakeSmooth(cell) {
         ctx.lineCap     = 'round';
         const last = rs.length - 1;
         for (let i = 0; i < last; i++) {
+            if (isWrapSeam(rs[i], rs[i+1])) continue; // no scale bridge across a Wall Wrap seam
             const x0  = rs[i].x     * cell + hw, y0  = rs[i].y     * cell + hw;
             const x1  = rs[i + 1].x * cell + hw, y1  = rs[i + 1].y * cell + hw;
             const tdx = (x1 - x0) / cell, tdy = (y1 - y0) / cell; // unit toward tail
