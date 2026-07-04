@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.76';
+const VERSION = 'v1.77';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -1240,16 +1240,56 @@ function updateAbilityHud() {
         const lvl = abilityLevels[key];
         if (lvl <= 0) continue;
         const cfg  = ABILITY_CFG[key];
+        const wrap = document.createElement('div');
+        wrap.className = 'ability-icon-wrap';
         const icon = document.createElement('div');
         icon.className = 'ability-icon';
+        icon.dataset.key = key;
         icon.title = cfg.name;
         icon.textContent = abilityAcronym(cfg.name);
+        if (key in abilityCooldowns) {
+            const overlay = document.createElement('div');
+            overlay.className = 'cd-overlay';
+            icon.appendChild(overlay);
+        }
         const badge = document.createElement('span');
         badge.className = 'lvl-badge';
         badge.textContent = String(lvl);
-        icon.appendChild(badge);
-        list.appendChild(icon);
+        wrap.append(icon, badge);
+        list.appendChild(wrap);
     }
+    updateAbilityCooldownVisuals();
+}
+
+// Total cooldown-cycle length for an owned ability, in ms — used to turn the raw
+// abilityCooldowns timestamp into a fill fraction for the icon-bar overlay. Slow Time's
+// tracked timestamp includes its active duration too (see activateSlowTime), so its cycle is
+// duration+cooldown, not just cooldown, or the overlay would read as ready too early.
+function abilityCooldownTotal(key) {
+    const cfg = ABILITY_CFG[key];
+    const level = abilityLevels[key];
+    if (level <= 0 || !cfg.cooldowns) return 0;
+    let total = cfg.cooldowns[level - 1];
+    if (key === 'slowtime' && cfg.durations) total += cfg.durations[level - 1];
+    return total;
+}
+
+// Refreshes just the cooldown-fill overlay + ready-glow on existing icons — called every
+// frame (see loop()), cheap since there are at most MAX_ABILITY_SLOTS of them. Doesn't touch
+// the DOM structure, unlike updateAbilityHud() which rebuilds the whole list.
+function updateAbilityCooldownVisuals() {
+    if (gameMode !== 'advanced') return;
+    const now = performance.now();
+    document.querySelectorAll('.ability-icon').forEach(icon => {
+        const key = icon.dataset.key;
+        if (!key || !(key in abilityCooldowns)) return;
+        const total = abilityCooldownTotal(key);
+        const remain = abilityCooldowns[key] - now;
+        const frac = total > 0 ? Math.max(0, Math.min(1, remain / total)) : 0;
+        const overlay = icon.querySelector('.cd-overlay');
+        if (overlay) overlay.style.height = `${frac * 100}%`;
+        icon.classList.toggle('cd-ready', frac <= 0);
+    });
 }
 
 function updateAdvancedHUD() {
@@ -2084,8 +2124,8 @@ function sfxLunge() {
 }
 
 // How many steps a dash would take to reach food right now (0 = no target in range) — shared
-// by tryLunge() (actually triggers it) and dashReady() (just checks, for the on-screen ring
-// indicator letting the player know a tap would connect before they commit to one).
+// by tryLunge() (actually triggers it) and tapAbilityReady() (just checks, for the on-screen
+// ring indicator letting the player know a tap would connect before they commit to one).
 function dashTargetSteps() {
     if (gameMode !== 'advanced' || abilityLevels.dash === 0 || !snake.length) return 0;
     const level    = abilityLevels.dash;
@@ -2101,12 +2141,20 @@ function dashTargetSteps() {
     return 0;
 }
 
-// True when a Dash tap right now would actually connect — off cooldown AND food within this
-// level's range along the current heading. Drives the pulsing ready-ring around the head.
-function dashReady() {
-    return gameMode === 'advanced' && abilityLevels.dash > 0
-        && performance.now() >= abilityCooldowns.dash
-        && dashTargetSteps() > 0;
+// True when tapping right now would actually do something — whichever ability currently
+// occupies the tap slot (only one ever can, see rollAbilityChoices). Dash additionally needs
+// food in range; the rest just need to be off cooldown. Drives the pulsing ready-ring around
+// the head (see drawTapReady) so there's a cue before committing to a tap, for any tap
+// ability, not just Dash.
+function tapAbilityReady() {
+    if (gameMode !== 'advanced') return false;
+    const now = performance.now();
+    if (abilityLevels.dash > 0)          return now >= abilityCooldowns.dash && dashTargetSteps() > 0;
+    if (abilityLevels.reversethrust > 0) return now >= abilityCooldowns.reversethrust;
+    if (abilityLevels.nimbletail > 0)    return now >= abilityCooldowns.nimbletail;
+    if (abilityLevels.rattle > 0)        return now >= abilityCooldowns.rattle;
+    if (abilityLevels.phasetail > 0)     return now >= abilityCooldowns.phasetail;
+    return false;
 }
 
 // Dash — advanced mode only, and only once picked (see ABILITY_CFG.dash). Its own cooldown
@@ -2405,6 +2453,7 @@ function loop(now) {
         levelUpPendingAt = 0;
         showNextLevelUp();
     }
+    if (gameState === 'running') updateAbilityCooldownVisuals();
     if (gameState === 'running' && !levelUpOpen) {
         if (lungeQueue > 0) {
             if (now - lastTick >= 35) {
@@ -2504,7 +2553,7 @@ function draw() {
     if (gameMode === 'advanced') {
         if (tongue && performance.now() < tongueVisUntil) drawTongue(cell);
         if (babySnake.length > 0) drawBabySnake(cell);
-        if (dashReady()) drawDashReady(cell);
+        if (tapAbilityReady()) drawTapReady(cell);
         if (holdBoost && abilityLevels.pitsense > 0) drawPitSense(cell);
     }
     if (gameState === 'entering') { ctx.save(); ctx.translate(enterSlideX, 0); }
@@ -2881,9 +2930,10 @@ function drawWin(size, cell) {
     ctx.fillStyle='#555'; ctx.fillText('Swipe to play again', size/2, size*0.68);
 }
 
-// Pulsing gold ring around the head while a Dash tap right now would actually connect —
-// otherwise there's no way to tell whether a tap will do anything before committing to it.
-function drawDashReady(cell) {
+// Pulsing gold ring around the head while the equipped tap ability would actually do
+// something right now — otherwise there's no way to tell whether a tap will connect before
+// committing to it.
+function drawTapReady(cell) {
     if (!renderSnake.length) return;
     const hw = cell / 2;
     const hx = renderSnake[0].x*cell+hw, hy = renderSnake[0].y*cell+hw;

@@ -394,17 +394,26 @@ input[type="range"] {
 .gslot.empty .gslot-name { color: #444; font-weight: normal; }
 
 #ability-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+.ability-icon-wrap { position: relative; width: 26px; height: 26px; flex-shrink: 0; }
 .ability-icon {
     position: relative;
-    width: 26px; height: 26px;
+    width: 100%; height: 100%;
     border-radius: 50%;
     background: #1a1a1a;
     border: 2px solid #44ff44;
     display: flex; align-items: center; justify-content: center;
     font-size: 8px; font-weight: bold; color: #44ff44; font-family: monospace;
-    flex-shrink: 0;
+    overflow: hidden; /* clips .cd-overlay to the circle without also clipping the badge */
+    transition: box-shadow 0.15s;
 }
-.ability-icon .lvl-badge {
+.ability-icon.cd-ready { box-shadow: 0 0 6px 1px rgba(68,255,68,0.85); }
+.cd-overlay {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 0%;
+    background: rgba(0,0,0,0.68);
+    pointer-events: none;
+}
+.lvl-badge {
     position: absolute; bottom: -4px; right: -4px;
     width: 14px; height: 14px;
     border-radius: 50%;
@@ -412,6 +421,7 @@ input[type="range"] {
     font-size: 9px; font-weight: bold;
     display: flex; align-items: center; justify-content: center;
     border: 1px solid #111;
+    z-index: 1;
 }
 
 /* ── Level-up overlay ── */
