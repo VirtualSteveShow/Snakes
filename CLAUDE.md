@@ -24,6 +24,7 @@ Browser-based Snake roguelite ("Snake Survivor"). Portrait mode. Bottom portion 
 | 8081 | Meal Planner |
 | 8082 | SpyFall |
 | **8083** | **Snakes ← this project** |
+| 8084 | OneHand (`C:\Projects\OneHand`) |
 
 ---
 
