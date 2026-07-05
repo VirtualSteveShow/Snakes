@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.86';
+const VERSION = 'v1.87';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -3587,7 +3587,13 @@ function setHandedness(h) {
 // only possible via Wall Wrap, where one side of the pair has wrapped and the other hasn't.
 // A normal single-cell step never puts either delta above 1.
 function isWrapSeam(a, b) {
-    return Math.abs(b.x - a.x) > 1 || Math.abs(b.y - a.y) > 1;
+    // Threshold is 1.5, not 1 — a and b are often interpolated (renderSnake) positions, and
+    // floating-point interpolation can overshoot an exact 1.0 by a tiny epsilon (e.g.
+    // 1.0000000000000009) for two perfectly ordinary adjacent segments. A strict >1 check
+    // treated that noise as a real seam, breaking the body for a single frame at random
+    // during completely normal movement, nothing to do with Wall Wrap. Genuine wraps jump by
+    // nearly the whole board, so 1.5 still catches every real case with room to spare.
+    return Math.abs(b.x - a.x) > 1.5 || Math.abs(b.y - a.y) > 1.5;
 }
 
 function drawDigestion(cell, bodyW) {
