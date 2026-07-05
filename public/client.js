@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v1.85';
+const VERSION = 'v1.86';
 
 // ── Difficulty ────────────────────────────────────────────────
 const DIFFICULTIES = {
@@ -172,14 +172,22 @@ function updateRenderSnake(now) {
         renderSnake = snake;
         return;
     }
+    // Wall Wrap can jump a segment clean across the board in one tick (e.g. x=19 -> x=0) — a
+    // normal single-cell step never has either delta above 1. Interpolating that literally
+    // sweeps the segment across the whole grid; snapping *just that one segment* to its final
+    // position instead leaves it sitting there for the entire tick while its still-gliding
+    // neighbor hasn't caught up, which reads as the body flickering/breaking apart as the wrap
+    // propagates down the body one segment per tick. Snapping the *whole snake* for that one
+    // tick keeps every segment mutually consistent (no neighbor mismatch) at the cost of one
+    // tick's worth of glide — normal smooth interpolation resumes as soon as nothing wrapped.
+    const wrapped = snake.some((s, i) => {
+        const p = i < prevSnake.length ? prevSnake[i] : s;
+        return Math.abs(s.x - p.x) > 1 || Math.abs(s.y - p.y) > 1;
+    });
+    if (wrapped) { renderSnake = snake; return; }
     const t = Math.max(0, Math.min(1, curEffMs > 0 ? (now - lastTick) / curEffMs : 1));
     renderSnake = snake.map((s, i) => {
         const p = i < prevSnake.length ? prevSnake[i] : s;
-        // Wall Wrap can jump a segment clean across the board in one tick (e.g. x=19 -> x=0).
-        // A normal single-cell step never has either delta above 1, so anything bigger means
-        // a wrap happened — interpolating that literally would sweep the segment across the
-        // whole grid instead of popping it to the far edge, so just snap it straight there.
-        if (Math.abs(s.x - p.x) > 1 || Math.abs(s.y - p.y) > 1) return { x: s.x, y: s.y };
         return { x: p.x + (s.x - p.x) * t, y: p.y + (s.y - p.y) * t };
     });
 }
